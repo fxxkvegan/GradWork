@@ -1,0 +1,463 @@
+openapi: 3.0.0
+info:
+  title: App Store API
+  description: |
+    App StoreのAPI定義書。アプリ情報、ユーザー管理、レビュー、ダウンロード、管理者向け、通知などの機能を提供します。
+  version: "1.0.0"
+servers:
+  - url: https://api.example.com/v1
+    description: 本番環境
+  - url: https://staging-api.example.com/v1
+    description: ステージング環境
+paths:
+  /apps:
+    get:
+      summary: アプリ一覧の取得
+      description: カテゴリ・ランキング・おすすめなどでフィルタリングされたアプリ一覧を取得します。
+      responses:
+        '200':
+          description: アプリ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/App'
+  /apps/{id}:
+    get:
+      summary: アプリ詳細の取得
+      description: 指定したIDのアプリ情報（スクリーンショット、説明、バージョンなど）を取得します。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: アプリID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: アプリ詳細情報
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
+        '404':
+          description: アプリが見つかりません
+  /apps/search:
+    get:
+      summary: アプリ検索
+      description: クエリパラメータqによるアプリ検索を行います。
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: 検索キーワード
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 検索結果
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/App'
+  /categories:
+    get:
+      summary: カテゴリ一覧の取得
+      description: 利用可能なカテゴリ一覧（例：ゲーム、ツール、教育など）を取得します。
+      responses:
+        '200':
+          description: カテゴリ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+  /auth/register:
+    post:
+      summary: ユーザー登録
+      description: 新規ユーザーを登録します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterUser'
+      responses:
+        '201':
+          description: 登録成功
+  /auth/login:
+    post:
+      summary: ログイン
+      description: ユーザーの認証を行い、トークンを発行します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginUser'
+      responses:
+        '200':
+          description: 認証成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+  /user/profile:
+    get:
+      summary: プロフィール取得
+      description: ユーザーのプロフィール情報を取得します。
+      responses:
+        '200':
+          description: ユーザープロフィール
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+  /auth/logout:
+    post:
+      summary: ログアウト
+      description: ユーザーのログアウトを行います。
+      responses:
+        '200':
+          description: ログアウト成功
+  /apps/{id}/reviews:
+    get:
+      summary: アプリレビュー一覧の取得
+      description: 特定アプリのレビュー一覧を取得します。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: アプリID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: レビュー一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Review'
+    post:
+      summary: アプリレビュー投稿
+      description: 新しいレビューを投稿します。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: アプリID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewReview'
+      responses:
+        '201':
+          description: レビュー投稿成功
+  /reviews/{id}:
+    put:
+      summary: レビューの編集
+      description: 指定されたレビューの内容を編集します。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: レビューID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewReview'
+      responses:
+        '200':
+          description: 編集成功
+    delete:
+      summary: レビューの削除
+      description: 指定されたレビューを削除します。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: レビューID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 削除成功
+  /apps/{id}/download:
+    post:
+      summary: アプリのダウンロード要求
+      description: アプリのダウンロード要求（またはインストール）を行います。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: アプリID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ダウンロード要求成功
+  /apps/{id}/purchase:
+    post:
+      summary: アプリの購入処理
+      description: 有料アプリの場合の購入処理を行います。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: アプリID
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 購入成功
+  /admin/apps:
+    post:
+      summary: アプリの新規登録（管理者）
+      description: 管理者が新しいアプリを登録します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewApp'
+      responses:
+        '201':
+          description: 登録成功
+  /admin/apps/{id}:
+    put:
+      summary: アプリの編集（管理者）
+      description: 管理者がアプリ情報を編集します。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: アプリID
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewApp'
+      responses:
+        '200':
+          description: 編集成功
+    delete:
+      summary: アプリの削除（管理者）
+      description: 管理者がアプリを削除します。
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: アプリID
+          schema:
+            type: string
+      responses:
+        '204':
+          description: 削除成功
+  /notifications:
+    get:
+      summary: お知らせ一覧の取得
+      description: ユーザー向けのお知らせ一覧を取得します。
+      responses:
+        '200':
+          description: お知らせ一覧
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Notification'
+  /contact:
+    post:
+      summary: 問い合わせフォーム送信
+      description: ユーザーのお問い合わせ内容を送信します。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Contact'
+      responses:
+        '200':
+          description: 送信成功
+components:
+  schemas:
+    App:
+      type: object
+      properties:
+        id:
+          type: string
+          description: アプリID
+        name:
+          type: string
+          description: アプリ名
+        description:
+          type: string
+          description: アプリ説明
+        version:
+          type: string
+          description: バージョン
+        developer:
+          type: string
+          description: 開発者
+        category:
+          $ref: '#/components/schemas/Category'
+    NewApp:
+      type: object
+      properties:
+        name:
+          type: string
+          description: アプリ名
+        description:
+          type: string
+          description: アプリ説明
+        version:
+          type: string
+          description: バージョン
+        developer:
+          type: string
+          description: 開発者
+        categoryId:
+          type: string
+          description: カテゴリID
+      required:
+        - name
+        - version
+        - developer
+        - categoryId
+    Category:
+      type: object
+      properties:
+        id:
+          type: string
+          description: カテゴリID
+        name:
+          type: string
+          description: カテゴリ名
+    RegisterUser:
+      type: object
+      properties:
+        username:
+          type: string
+          description: ユーザー名
+        email:
+          type: string
+          description: メールアドレス
+        password:
+          type: string
+          description: パスワード
+      required:
+        - username
+        - email
+        - password
+    LoginUser:
+      type: object
+      properties:
+        email:
+          type: string
+          description: メールアドレス
+        password:
+          type: string
+          description: パスワード
+      required:
+        - email
+        - password
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          description: ユーザーID
+        username:
+          type: string
+          description: ユーザー名
+        email:
+          type: string
+          description: メールアドレス
+    Review:
+      type: object
+      properties:
+        id:
+          type: string
+          description: レビューID
+        appId:
+          type: string
+          description: アプリID
+        userId:
+          type: string
+          description: ユーザーID
+        rating:
+          type: integer
+          format: int32
+          description: 評価
+        comment:
+          type: string
+          description: コメント
+        createdAt:
+          type: string
+          format: date-time
+          description: 投稿日時
+    NewReview:
+      type: object
+      properties:
+        rating:
+          type: integer
+          format: int32
+          description: 評価
+        comment:
+          type: string
+          description: コメント
+      required:
+        - rating
+        - comment
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          description: 通知ID
+        title:
+          type: string
+          description: タイトル
+        message:
+          type: string
+          description: メッセージ
+        date:
+          type: string
+          format: date-time
+          description: 通知日時
+    Contact:
+      type: object
+      properties:
+        name:
+          type: string
+          description: 名前
+        email:
+          type: string
+          description: メールアドレス
+        message:
+          type: string
+          description: メッセージ
+      required:
+        - name
+        - email
+        - message
