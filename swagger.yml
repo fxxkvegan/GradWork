@@ -1,463 +1,637 @@
 openapi: 3.0.0
 info:
-  title: App Store API
-  description: |
-    App StoreのAPI定義書。アプリ情報、ユーザー管理、レビュー、ダウンロード、管理者向け、通知などの機能を提供します。
+  title: App Catalog API
+  description: >
+    RESTful API for an application catalog platform that lets users discover, review
+    and manage mobile / desktop apps.
+    This spec is derived from initial product notes and refined following common REST
+    best‑practices (resource‑oriented URIs, nouns for resources, HTTP verbs for actions,
+    plural collection names, and standard HTTP response codes).
   version: "1.0.0"
 servers:
   - url: https://api.example.com/v1
-    description: 本番環境
-  - url: https://staging-api.example.com/v1
-    description: ステージング環境
+    description: Production
+  - url: https://sandbox.api.example.com/v1
+    description: Sandbox
+tags:
+  - name: Products
+    description: Manage apps that are listed in the catalog
+  - name: Reviews
+  - name: Users
+  - name: Home
+security:
+  - bearerAuth: []
 paths:
-  /apps:
+  /products:
     get:
-      summary: アプリ一覧の取得
-      description: カテゴリ・ランキング・おすすめなどでフィルタリングされたアプリ一覧を取得します。
-      responses:
-        '200':
-          description: アプリ一覧
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/App'
-  /apps/{id}:
-    get:
-      summary: アプリ詳細の取得
-      description: 指定したIDのアプリ情報（スクリーンショット、説明、バージョンなど）を取得します。
+      tags: [Products]
+      summary: List / search products
       parameters:
-        - name: id
-          in: path
-          required: true
-          description: アプリID
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - in: query
+          name: q
           schema:
             type: string
-      responses:
-        '200':
-          description: アプリ詳細情報
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/App'
-        '404':
-          description: アプリが見つかりません
-  /apps/search:
-    get:
-      summary: アプリ検索
-      description: クエリパラメータqによるアプリ検索を行います。
-      parameters:
-        - name: q
-          in: query
-          required: true
-          description: 検索キーワード
+          description: Keyword search
+        - in: query
+          name: sort
           schema:
             type: string
+            enum: [new, topRated, trending, access]
       responses:
-        '200':
-          description: 検索結果
+        200:
+          description: List of products
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/App'
-  /categories:
-    get:
-      summary: カテゴリ一覧の取得
-      description: 利用可能なカテゴリ一覧（例：ゲーム、ツール、教育など）を取得します。
-      responses:
-        '200':
-          description: カテゴリ一覧
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Category'
-  /auth/register:
+                $ref: "#/components/schemas/ProductList"
     post:
-      summary: ユーザー登録
-      description: 新規ユーザーを登録します。
+      tags: [Products]
+      summary: Create a new product
+      security:
+        - bearerAuth: []
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RegisterUser'
+              $ref: "#/components/schemas/ProductCreate"
       responses:
-        '201':
-          description: 登録成功
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+  /products/{productId}:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      tags: [Products]
+      summary: Get product detail
+      responses:
+        200:
+          description: Product detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    put:
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      summary: Update a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        200:
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+    delete:
+      tags: [Products]
+      security:
+        - bearerAuth: []
+      summary: Delete a product
+      responses:
+        204:
+          description: Deleted
+  /products/{productId}/versions:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      tags: [Products]
+      summary: Version history
+      responses:
+        200:
+          description: List of versions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VersionList"
+  /rankings:
+    get:
+      tags: [Rankings]
+      summary: Get rankings
+      parameters:
+        - in: query
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [access, new, topRated, trending]
+      responses:
+        200:
+          description: Ranking result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RankingList"
+  /products/{productId}/reviews:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      tags: [Reviews]
+      summary: List reviews for a product
+      responses:
+        200:
+          description: Reviews list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewList"
+    post:
+      tags: [Reviews]
+      security:
+        - bearerAuth: []
+      summary: Post a review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewCreate"
+      responses:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+  /reviews/{reviewId}:
+    parameters:
+      - $ref: "#/components/parameters/ReviewId"
+    put:
+      tags: [Reviews]
+      security:
+        - bearerAuth: []
+      summary: Edit review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewUpdate"
+      responses:
+        200:
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Review"
+    delete:
+      tags: [Reviews]
+      security:
+        - bearerAuth: []
+      summary: Delete review
+      responses:
+        204:
+          description: Deleted
+  /users/me/reviews:
+    get:
+      tags: [Reviews, Users]
+      security:
+        - bearerAuth: []
+      summary: List my reviews
+      responses:
+        200:
+          description: My reviews
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewList"
+  /reviews/{reviewId}/vote:
+    parameters:
+      - $ref: "#/components/parameters/ReviewId"
+    post:
+      tags: [Reviews]
+      security:
+        - bearerAuth: []
+      summary: Vote helpful
+      responses:
+        204:
+          description: Voted
   /auth/login:
     post:
-      summary: ログイン
-      description: ユーザーの認証を行い、トークンを発行します。
+      tags: [Users]
+      summary: Login
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginUser'
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  format: password
+              required: [email, password]
       responses:
-        '200':
-          description: 認証成功
+        200:
+          description: Login success
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  token:
-                    type: string
-  /user/profile:
-    get:
-      summary: プロフィール取得
-      description: ユーザーのプロフィール情報を取得します。
-      responses:
-        '200':
-          description: ユーザープロフィール
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/User'
-  /auth/logout:
+                $ref: "#/components/schemas/AuthToken"
+  /auth/signup:
     post:
-      summary: ログアウト
-      description: ユーザーのログアウトを行います。
-      responses:
-        '200':
-          description: ログアウト成功
-  /apps/{id}/reviews:
-    get:
-      summary: アプリレビュー一覧の取得
-      description: 特定アプリのレビュー一覧を取得します。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: アプリID
-          schema:
-            type: string
-      responses:
-        '200':
-          description: レビュー一覧
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Review'
-    post:
-      summary: アプリレビュー投稿
-      description: 新しいレビューを投稿します。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: アプリID
-          schema:
-            type: string
+      tags: [Users]
+      summary: Sign‑up
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NewReview'
+              $ref: "#/components/schemas/UserCreate"
       responses:
-        '201':
-          description: レビュー投稿成功
-  /reviews/{id}:
+        201:
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /users/me:
+    get:
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      summary: Get my profile
+      responses:
+        200:
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
     put:
-      summary: レビューの編集
-      description: 指定されたレビューの内容を編集します。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: レビューID
-          schema:
-            type: string
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      summary: Update my profile
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/NewReview'
+              $ref: "#/components/schemas/UserUpdate"
       responses:
-        '200':
-          description: 編集成功
-    delete:
-      summary: レビューの削除
-      description: 指定されたレビューを削除します。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: レビューID
-          schema:
-            type: string
-      responses:
-        '204':
-          description: 削除成功
-  /apps/{id}/download:
-    post:
-      summary: アプリのダウンロード要求
-      description: アプリのダウンロード要求（またはインストール）を行います。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: アプリID
-          schema:
-            type: string
-      responses:
-        '200':
-          description: ダウンロード要求成功
-  /apps/{id}/purchase:
-    post:
-      summary: アプリの購入処理
-      description: 有料アプリの場合の購入処理を行います。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: アプリID
-          schema:
-            type: string
-      responses:
-        '200':
-          description: 購入成功
-  /admin/apps:
-    post:
-      summary: アプリの新規登録（管理者）
-      description: 管理者が新しいアプリを登録します。
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewApp'
-      responses:
-        '201':
-          description: 登録成功
-  /admin/apps/{id}:
-    put:
-      summary: アプリの編集（管理者）
-      description: 管理者がアプリ情報を編集します。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: アプリID
-          schema:
-            type: string
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/NewApp'
-      responses:
-        '200':
-          description: 編集成功
-    delete:
-      summary: アプリの削除（管理者）
-      description: 管理者がアプリを削除します。
-      parameters:
-        - name: id
-          in: path
-          required: true
-          description: アプリID
-          schema:
-            type: string
-      responses:
-        '204':
-          description: 削除成功
-  /notifications:
-    get:
-      summary: お知らせ一覧の取得
-      description: ユーザー向けのお知らせ一覧を取得します。
-      responses:
-        '200':
-          description: お知らせ一覧
+        200:
+          description: Updated profile
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Notification'
-  /contact:
-    post:
-      summary: 問い合わせフォーム送信
-      description: ユーザーのお問い合わせ内容を送信します。
+                $ref: "#/components/schemas/User"
+  /users/me/settings:
+    get:
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      summary: Get settings
+      responses:
+        200:
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserSettings"
+    put:
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      summary: Update settings
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Contact'
+              $ref: "#/components/schemas/UserSettings"
       responses:
-        '200':
-          description: 送信成功
+        200:
+          description: Updated
+  /users/me/history:
+    get:
+      tags: [Users]
+      security:
+        - bearerAuth: []
+      summary: View history
+      responses:
+        200:
+          description: Browsing history
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoryList"
+  /reviews/{reviewId}/responses:
+    parameters:
+      - $ref: "#/components/parameters/ReviewId"
+    get:
+      tags: [Reviews]
+      summary: Get review responses
+      responses:
+        200:
+          description: Responses
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReviewResponseList"
+    post:
+      tags: [Reviews]
+      security:
+        - bearerAuth: []
+      summary: Post review response
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReviewResponseCreate"
+      responses:
+        201:
+          description: Created
+  /products/{productId}/status:
+    parameters:
+      - $ref: "#/components/parameters/ProductId"
+    get:
+      tags: [Products]
+      summary: Deployment / maintenance status
+      responses:
+        200:
+          description: Status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProductStatus"
+  /home:
+    get:
+      tags: [Home]
+      summary: Aggregated data for landing page
+      responses:
+        200:
+          description: Home data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HomeData"
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ProductId:
+      name: productId
+      in: path
+      required: true
+      schema:
+        type: string
+    ReviewId:
+      name: reviewId
+      in: path
+      required: true
+      schema:
+        type: string
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
   schemas:
-    App:
+    Product:
       type: object
       properties:
         id:
           type: string
-          description: アプリID
         name:
           type: string
-          description: アプリ名
         description:
           type: string
-          description: アプリ説明
-        version:
+        rating:
+          type: number
+          format: float
+        downloadCount:
+          type: integer
+        createdAt:
           type: string
-          description: バージョン
-        developer:
+          format: date-time
+        updatedAt:
           type: string
-          description: 開発者
-        category:
-          $ref: '#/components/schemas/Category'
-    NewApp:
+          format: date-time
+      required: [id, name]
+    ProductCreate:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+      required: [name, description]
+    ProductUpdate:
+      allOf:
+        - $ref: "#/components/schemas/Product"
+    ProductList:
       type: object
       properties:
-        name:
-          type: string
-          description: アプリ名
-        description:
-          type: string
-          description: アプリ説明
-        version:
-          type: string
-          description: バージョン
-        developer:
-          type: string
-          description: 開発者
-        categoryId:
-          type: string
-          description: カテゴリID
-      required:
-        - name
-        - version
-        - developer
-        - categoryId
-    Category:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Product"
+        total:
+          type: integer
+    VersionList:
       type: object
       properties:
-        id:
-          type: string
-          description: カテゴリID
-        name:
-          type: string
-          description: カテゴリ名
-    RegisterUser:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              version:
+                type: string
+              releaseNotes:
+                type: string
+              releasedAt:
+                type: string
+                format: date-time
+    RankingList:
       type: object
       properties:
-        username:
-          type: string
-          description: ユーザー名
-        email:
-          type: string
-          description: メールアドレス
-        password:
-          type: string
-          description: パスワード
-      required:
-        - username
-        - email
-        - password
-    LoginUser:
-      type: object
-      properties:
-        email:
-          type: string
-          description: メールアドレス
-        password:
-          type: string
-          description: パスワード
-      required:
-        - email
-        - password
-    User:
-      type: object
-      properties:
-        id:
-          type: string
-          description: ユーザーID
-        username:
-          type: string
-          description: ユーザー名
-        email:
-          type: string
-          description: メールアドレス
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              rank:
+                type: integer
+              product:
+                $ref: "#/components/schemas/Product"
+              score:
+                type: number
     Review:
       type: object
       properties:
         id:
           type: string
-          description: レビューID
-        appId:
+        productId:
           type: string
-          description: アプリID
-        userId:
+        authorId:
           type: string
-          description: ユーザーID
         rating:
           type: integer
-          format: int32
-          description: 評価
-        comment:
+          minimum: 1
+          maximum: 5
+        title:
           type: string
-          description: コメント
+        body:
+          type: string
+        helpfulCount:
+          type: integer
         createdAt:
           type: string
           format: date-time
-          description: 投稿日時
-    NewReview:
+        updatedAt:
+          type: string
+          format: date-time
+      required: [id, productId, authorId, rating, body]
+    ReviewCreate:
       type: object
       properties:
         rating:
           type: integer
-          format: int32
-          description: 評価
-        comment:
+          minimum: 1
+          maximum: 5
+        title:
           type: string
-          description: コメント
-      required:
-        - rating
-        - comment
-    Notification:
+        body:
+          type: string
+      required: [rating, body]
+    ReviewUpdate:
+      allOf:
+        - $ref: "#/components/schemas/ReviewCreate"
+    ReviewList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/Review"
+        total:
+          type: integer
+    ReviewResponseCreate:
+      type: object
+      properties:
+        body:
+          type: string
+      required: [body]
+    ReviewResponseList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              reviewId:
+                type: string
+              authorId:
+                type: string
+              body:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+    AuthToken:
+      type: object
+      properties:
+        token:
+          type: string
+      required: [token]
+    User:
       type: object
       properties:
         id:
           type: string
-          description: 通知ID
-        title:
+        name:
           type: string
-          description: タイトル
-        message:
+        email:
           type: string
-          description: メッセージ
-        date:
+          format: email
+        avatarUrl:
           type: string
-          format: date-time
-          description: 通知日時
-    Contact:
+          format: uri
+        locale:
+          type: string
+        theme:
+          type: string
+      required: [id, name, email]
+    UserCreate:
       type: object
       properties:
         name:
           type: string
-          description: 名前
         email:
           type: string
-          description: メールアドレス
+          format: email
+        password:
+          type: string
+          format: password
+      required: [name, email, password]
+    UserUpdate:
+      allOf:
+        - $ref: "#/components/schemas/User"
+    UserSettings:
+      type: object
+      properties:
+        locale:
+          type: string
+        theme:
+          type: string
+    HistoryList:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              productId:
+                type: string
+              viewedAt:
+                type: string
+                format: date-time
+    ProductStatus:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [online, maintenance, deprecated]
         message:
           type: string
-          description: メッセージ
-      required:
-        - name
-        - email
-        - message
+        updatedAt:
+          type: string
+          format: date-time
+    HomeData:
+      type: object
+      properties:
+        topRanked:
+          $ref: "#/components/schemas/ProductList"
+        trending:
+          $ref: "#/components/schemas/ProductList"
