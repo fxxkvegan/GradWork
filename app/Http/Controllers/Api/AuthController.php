@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\User;
+use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
@@ -17,6 +19,16 @@ class AuthController extends Controller
     // POST /auth/signup
     public function signup(Request $request)
     {
+        $request->validate([
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|min:8|confirmed',
+        ]);
+
+        User::create([
+            'email' => $request->email,
+            'password' => Hash::make($request->password),
+        ]);
+
         // TODO: ユーザー新規登録処理
         return response()->json([
             'message' => 'User created successfully'
