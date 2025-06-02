@@ -23,7 +23,11 @@ class AuthController extends Controller
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:8|confirmed',
         ]);
-
+        // 入力内容のバリデーション
+        $validated = $request->validate([
+            'email'    => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
+        ]);
         User::create([
             'email' => $request->email,
             'password' => Hash::make($request->password),
