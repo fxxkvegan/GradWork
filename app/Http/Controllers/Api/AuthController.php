@@ -12,7 +12,17 @@ class AuthController extends Controller
     // POST /auth/login
     public function login(Request $request)
     {
-        // TODO: ログイン認証処理
+        $request->validate([
+            'email' => 'required|email',
+            'password' => 'required|min:8',
+        ]);
+        // 実際のアプリケーションでは、JWTやOAuthなどのトークン生成方法を使用することが一般的です。
+
+        $user = User::where('email', $request->email)->first();
+        // ユーザーが存在しない、またはパスワードが一致しない場合は401
+        if (!$user || !Hash::check($request->password, $user->password)) {
+            return response()->json(['error' => 'Unauthorized'], 401);
+        }
         return response()->json(['token' => 'dummy_token']);
     }
 
@@ -22,6 +32,12 @@ class AuthController extends Controller
         $request->validate([
             'email' => 'required|email|unique:users,email',
             'password' => 'required|min:8|confirmed',
+        ]);
+
+        // 入力内容のバリデーション
+        $validated = $request->validate([
+            'email'    => 'required|string|email|max:255|unique:users',
+            'password' => 'required|string|min:8|confirmed',
         ]);
 
         User::create([
