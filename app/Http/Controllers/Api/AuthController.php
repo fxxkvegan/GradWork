@@ -1,7 +1,6 @@
 <?php
 
 namespace App\Http\Controllers\Api;
-// test
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -17,13 +16,13 @@ class AuthController extends Controller
             'email' => 'required|email',
             'password' => 'required|min:8',
         ]);
-        // 実際のアプリケーションでは、JWTやOAuthなどのトークン生成方法を使用することが一般的です。
 
         $user = User::where('email', $request->email)->first();
         // ユーザーが存在しない、またはパスワードが一致しない場合は401
         if (!$user || !Hash::check($request->password, $user->password)) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
+
         return response()->json(['token' => 'dummy_token']);
     }
 

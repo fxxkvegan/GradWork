@@ -11,6 +11,10 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         // TODO: 製品一覧の取得とフィルタリング、ページネーションの実装
+        $filters = $request->only(['category', 'search', 'sort']);
+        // 例: $filters['category'] でカテゴリフィルタリング、$filters['search'] で検索キーワード、$filters['sort'] でソート順を取得
+        // ここで製品データを取得するロジックを実装
+        // 例: $products = Product::filter($filters)->paginate(
         return response()->json([
             'message' => 'List of products',
             'data' => [] // 製品データの配列
