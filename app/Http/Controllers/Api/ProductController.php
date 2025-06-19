@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -11,33 +12,45 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         // TODO: 製品一覧の取得とフィルタリング、ページネーションの実装
-        $filters = $request->only(['category', 'search', 'sort']);
-        // 例: $filters['category'] でカテゴリフィルタリング、$filters['search'] で検索キーワード、$filters['sort'] でソート順を取得
+        $filters = $request->only(['page', 'limit', 'q','sort']);
         // ここで製品データを取得するロジックを実装
+        $products = Product::filter($filters);
         // 例: $products = Product::filter($filters)->paginate(
         return response()->json([
             'message' => 'List of products',
-            'data' => [] // 製品データの配列
+            'data' => $products // 製品データの配列
         ]);
     }
 
     // POST /products
     public function store(Request $request)
     {
-        // TODO: 新規製品の登録処理
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'description' => 'nullable|string',
+            'raiting' => 'nullable|numeric|min:0|max:5',
+            'download_count' => 'nullable|integer|min:0',
+        ]);
+        $product = Product::create([
+            'name' => $request->name,
+            'description' => $request->description,
+            'raiting' => $request->raiting,
+            'download_count' => $request->download_count,
+        ]);
         return response()->json([
             'message' => 'Product created successfully',
-            'data' => [] // 作成された製品情報
+            'data' => $product // 作成された製品情報
         ], 201);
     }
 
     // GET /products/{productId}
     public function show($productId)
     {
-        // TODO: 製品詳細の取得
+        $productId = intval($productId);
+        $product = Product::findOrFail($productId);
         return response()->json([
             'message' => 'Product details',
-            'data' => [] // 製品詳細データ
+            'data' => $product  // 製品詳細データ
         ]);
     }
 
