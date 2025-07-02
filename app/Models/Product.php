@@ -10,10 +10,14 @@ class Product extends Model
         'id',
         'name',
         'description',
-        'raiting',
+        'rating',
         'download_count',
-        'created_at',
-        'updated_at',
-        // '追加したい分書く',
     ];
+
+    protected $casts = [
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
+        'rating' => 'float',
+        'download_count' => 'integer',
+    ];  
 }
