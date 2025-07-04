@@ -23,7 +23,7 @@ class ReviewController extends Controller
         if ($productId <= 0) {
             return response()->json([
                 'message' => 'Invalid product ID',
-                'data' => []
+                'data' => $productId
             ], 400);
         }
         // レビュー一覧を取得
@@ -42,13 +42,12 @@ class ReviewController extends Controller
         if ($productId <= 0) {    
             return response()->json([
                 'message' => 'Invalid product ID',
-                'data' => []
+                'data' => $productId
             ], 400);
         }
         $validatedData = $request->validate([
             'title' => 'required|string|max:255',
             'body' => 'required|string',
-            'rating' => 'required|integer|min:1|max:5',
         ]);
         $review = new Review();
         $review->product_id = $productId;
@@ -57,6 +56,8 @@ class ReviewController extends Controller
         $review->body = $validatedData['body'];
         $review->rating = $validatedData['rating'];
         $review->helpful_count = 0; // 初期値は0
+        $review->created_at = now(); // 作成日時
+        $review->updated_at = now(); // 更新日時
         $review->save();
         // レスポンスデータの整形
         $responseData = [
@@ -66,7 +67,7 @@ class ReviewController extends Controller
             'body' => $review->body,
             'rating' => $review->rating,
             'helpful_count' => $review->helpful_count,
-            'created_at' => $review->created_at,
+            'created_at' => $review->created_at ,
         ];
         return response()->json([
             'message' => 'Review list',
@@ -77,10 +78,38 @@ class ReviewController extends Controller
     // PUT /reviews/{reviewId}
     public function update(Request $request, $reviewId)
     {
-        // TODO: 指定レビューの更新処理
+        $reviewId = intval($reviewId);
+        if ($reviewId <= 0) {    
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $reviewId
+            ], 400);
+        }
+        $validatedData = $request->validate([
+            'title' => 'required|string|max:255',
+            'body' => 'required|string',
+            'rating' => 'required|integer|min:1|max:5',
+        ]);
+        $review = Review::findOrFail($reviewId);
+        $review->title = $validatedData['title'];
+        $review->body = $validatedData['body'];
+        $review->rating = $validatedData['rating'];
+        $review->updated_at = now(); // 更新日時
+        $review->save();
+        // レスポンスデータの整形
+        $responseData = [
+            'id' => $review->id,
+            'product_id' => $review->product_id,
+            'title' => $review->title,
+            'body' => $review->body,
+            'rating' => $review->rating,
+            'helpful_count' => $review->helpful_count,
+            'created_at' => $review->created_at,
+            'updated_at' => $review->updated_at,
+        ];
         return response()->json([
             'message' => 'Review updated successfully',
-            'data' => [] // 更新後のレビュー情報
+            'data' => $responseData // 更新後のレビュー情報
         ]);
     }
 

@@ -45,6 +45,13 @@ class ProductController extends Controller
             'created_at' => now(), // 作成日時
             'updated_at' => now(), // 更新日時
         ]);
+        // 製品情報が正常でなかった場合
+        if (!$product) {
+            return response()->json([
+                'message' => 'Failed to create product',
+                'data' => null
+            ], 500);
+        }
         return response()->json([
             'message' => 'Product created successfully',
             'data' => $product // 作成された製品情報
@@ -55,6 +62,12 @@ class ProductController extends Controller
     public function show($productId)
     {
         $productId = intval($productId);
+        if ($productId <= 0) {    
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
         $product = Product::findOrFail($productId);
         return response()->json([
             'message' => 'Product details',
@@ -73,6 +86,12 @@ class ProductController extends Controller
             'download_count' => 'nullable|integer|min:0',
         ]);
         $productId = intval($productId);
+        if ($productId <= 0) {    
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
         $product = Product::findOrFail($productId);
         $product->name = $request->name;
         $product->description = $request->description;
