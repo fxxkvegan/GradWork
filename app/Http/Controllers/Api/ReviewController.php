@@ -137,7 +137,24 @@ class ReviewController extends Controller
     // DELETE /reviews/{reviewId}
     public function destroy($reviewId)
     {
-        // TODO: 指定レビューの削除処理
+        //rviewIdを検証する
+        $reviewId = intval($reviewId);
+        if ($reviewId <= 0) {
+            return response()->json([
+                'message' => 'Invalid review ID',
+                'data' => $reviewId
+            ], 400);
+        }
+        // 指定レビューの削除処理
+        $review = Review::findOrFail($reviewId);
+        if (!$review) {
+            return response()->json([
+                'message' => 'Review not found',
+                'data' => $reviewId
+            ], 404);
+        }
+        $review->delete();
+    
         return response()->json(null, 204);
     }
 
