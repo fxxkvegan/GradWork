@@ -28,6 +28,27 @@ class ReviewController extends Controller
         }
         // レビュー一覧を取得
         $reviews = Review::where('product_id', $productId)->get();
+        // レビューが存在しない場合の処理
+        if ($reviews->isEmpty()) {  
+            return response()->json([
+                'message' => 'reviews not found for this product',
+                'data' => $productId
+            ], 404);
+        }
+        // レスポンスデータの整形
+        $reviews = $reviews->map(function ($review) {
+            return [
+                'id' => $review->id,
+                'product_id' => $review->product_id,
+                'author_id' => $review->author_id,
+                'title' => $review->title,
+                'body' => $review->body,
+                'rating' => $review->rating,
+                'helpful_count' => $review->helpful_count,
+                'created_at' => $review->created_at,
+                'updated_at' => $review->updated_at,
+            ];
+        });
         return response()->json([
             'message' => 'List of reviews',
             'data' => $reviews // レビュー一覧データ
