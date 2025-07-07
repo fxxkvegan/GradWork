@@ -62,7 +62,7 @@ class UserController extends Controller
         $responseData->name = request('name', $responseData->name);
         $responseData->email = request('email', $responseData->email);  
         $responseData->avatar_url = request('avatarUrl', $responseData->avatar_url);
-        $responseData->locate = request('locale', $responseData->locale);
+        $responseData->locale = request('locale', $responseData->locale);
         $responseData->theme = request('theme', $responseData->theme);
         $responseData->save();
         // レスポンスデータの整形

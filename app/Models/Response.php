@@ -26,9 +26,9 @@ class Response extends Model
     /**
      * レビューに紐づく製品を取得
      */
-    public function product()
+    public function review()
     {
-        return $this->belongsTo(Product::class);
+        return $this->belongsTo(Review::class);
     }
 
     /**
