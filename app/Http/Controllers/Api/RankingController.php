@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Product;
 use Illuminate\Http\Request;
 
 class RankingController extends Controller
@@ -10,10 +11,12 @@ class RankingController extends Controller
     // GET /rankings
     public function index(Request $request)
     {
-        // TODO: ランキングの取得処理（typeパラメータ等を利用）
+        $rankings = Product::orderBy('rating', 'desc')
+                        ->take(5)
+                        ->get();
         return response()->json([
             'message' => 'Ranking result',
-            'data' => [] // ランキング結果データ
+            'data' => $rankings // ランキング結果データ
         ]);
     }
 }
