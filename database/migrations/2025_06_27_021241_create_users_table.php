@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('avatar_url')->nullable();
             $table->string('locale')->default('ja');
             $table->string('theme')->default('light');
+            $table->rememberToken();
             $table->timestamp('email_verified_at')->nullable();
         });
     }

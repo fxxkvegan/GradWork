@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Response;
 use App\Models\Review;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -200,9 +201,27 @@ class ReviewController extends Controller
             ], 404);
         }
         $reviewResponses = $review->responses; // レビューに紐づくレスポンスを取得
+        // レスポンスが存在しない場合の処理
+        if ($reviewResponses->isEmpty()) {
+            return response()->json([
+                'message' => 'No responses found for this review',
+                'data' => $reviewId
+            ], 404);
+        }
+        // レスポンスデータの整形
+        $reviewResponses = $reviewResponses->map(function ($response) {
+            return [
+                'id' => $response->id,
+                'review_id' => $response->review_id,
+                'author_id' => $response->author_id,
+                'body' => $response->body,
+                'created_at' => $response->created_at,
+                'updated_at' => $response->updated_at,
+            ];
+        });
         return response()->json([
             'message' => 'List of review responses',
-            'data' => [] // レスポンス一覧データ
+            'data' => $reviewResponses // レスポンス一覧データ
         ]);
     }
 
@@ -210,9 +229,43 @@ class ReviewController extends Controller
     public function storeResponse(Request $request, $reviewId)
     {
         // TODO: レビューへの新規レスポンス投稿処理
+        $reviewId = intval($reviewId);
+        if ($reviewId <= 0) { 
+            return response()->json([
+                'message' => 'Invalid review ID',
+                'data' => $reviewId
+            ], 400);
+        }
+        $validatedData = $request->validate([
+            'body' => 'required|string',
+        ]);
+        $review = Review::findOrFail($reviewId);
+        if (!$review) {
+            return response()->json([
+                'message' => 'Review not found',
+                'data' => $reviewId
+            ], 404);
+        }
+        $responseData = Response::create([
+            'review_id' => $reviewId,
+            'author_id' => Auth::id(), // 認証済みユーザーのIDを使用
+            'body' => $validatedData['body'],
+            'created_at' => now(), // 作成日時
+            'updated_at' => now(), // 更新日時
+        ]);
+        // レスポンスデータの整形
+        $responseData = [
+            'id' => $responseData->id,
+            'review_id' => $responseData->review_id,
+            'author_id' => $responseData->author_id,
+            'body' => $responseData->body,
+            'created_at' => $responseData->created_at,
+            'updated_at' => $responseData->updated_at,
+        ];
+
         return response()->json([
             'message' => 'Review response created',
-            'data' => [] // 作成されたレスポンスデータ
+            'data' => $responseData // 作成されたレスポンスデータ
         ], 201);
     }
 }

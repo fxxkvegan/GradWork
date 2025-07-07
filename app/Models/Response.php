@@ -24,7 +24,7 @@ class Response extends Model
     ];
 
     /**
-     * レビューに紐づく製品を取得
+     * レスポンスに基づくレビューを取得
      */
     public function review()
     {
