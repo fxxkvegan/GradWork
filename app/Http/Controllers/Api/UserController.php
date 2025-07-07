@@ -32,7 +32,7 @@ class UserController extends Controller
             'name' => $responseData->name,
             'email' => $responseData->email,
             'avatarUrl' => $responseData->avatar_url,
-            'locate' => $responseData->locate,
+            'locale' => $responseData->locale,
             'theme' => $responseData->theme,
         ]; 
         
@@ -62,7 +62,7 @@ class UserController extends Controller
         $responseData->name = request('name', $responseData->name);
         $responseData->email = request('email', $responseData->email);  
         $responseData->avatar_url = request('avatarUrl', $responseData->avatar_url);
-        $responseData->locate = request('locate', $responseData->locate);
+        $responseData->locate = request('locale', $responseData->locale);
         $responseData->theme = request('theme', $responseData->theme);
         $responseData->save();
         // レスポンスデータの整形
@@ -71,7 +71,7 @@ class UserController extends Controller
             'name' => $responseData->name,
             'email' => $responseData->email,
             'avatarUrl' => $responseData->avatar_url,
-            'locate' => $responseData->locate,
+            'locale' => $responseData->locale,
             'theme' => $responseData->theme,
         ];
 

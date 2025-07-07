@@ -162,6 +162,22 @@ class ReviewController extends Controller
     public function vote($reviewId)
     {
         // TODO: レビューへの「いいね」投票処理
+        $reviewId = intval($reviewId);
+        if ($reviewId <= 0) {
+            return response()->json([
+                'message' => 'Invalid review ID',
+                'data' => $reviewId
+            ], 400);
+        }
+        $review = Review::findOrFail($reviewId);
+        if (!$review) {
+            return response()->json([
+                'message' => 'Review not found',
+                'data' => $reviewId
+            ], 404);
+        }
+        $review->helpful_count += 1; // いいね数を増やす
+        $review->save();
         return response()->json(null, 204);
     }
 
@@ -169,6 +185,21 @@ class ReviewController extends Controller
     public function responses($reviewId)
     {
         // TODO: レビューへのレスポンス一覧取得処理
+        $reviewId = intval($reviewId);
+        if ($reviewId <= 0) {
+            return response()->json([
+                'message' => 'Invalid review ID',
+                'data' => $reviewId
+            ], 400);
+        }
+        $review = Review::findOrFail($reviewId);
+        if (!$review) {
+            return response()->json([
+                'message' => 'Review not found',
+                'data' => $reviewId
+            ], 404);
+        }
+        $reviewResponses = $review->responses; // レビューに紐づくレスポンスを取得
         return response()->json([
             'message' => 'List of review responses',
             'data' => [] // レスポンス一覧データ

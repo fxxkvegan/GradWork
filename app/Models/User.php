@@ -16,12 +16,25 @@ class User extends Authenticatable
      * @var array
      */
     protected $fillable = [
+        'name',
         'email',
         'password',
+        'avatar_url',
+        'locale',
+        'theme',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+    ];
+
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array
+     */
+    protected $casts = [
+        'email_verified_at' => 'datetime',
     ];
 }
