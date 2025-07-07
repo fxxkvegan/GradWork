@@ -52,7 +52,7 @@ class ReviewController extends Controller
         });
         return response()->json([
             'message' => 'List of reviews',
-            'data' => $reviews // レビュー一覧データ
+            'items' => $reviews // レビュー一覧データ
         ]);
     }
 
@@ -113,11 +113,20 @@ class ReviewController extends Controller
             'rating' => 'required|integer|min:1|max:5',
         ]);
         $review = Review::findOrFail($reviewId);
+        // レビューが存在しない場合の処理
+        if (!$review) {
+            return response()->json([
+                'message' => 'Review not found',
+                'data' => $reviewId
+            ], 404);
+        }
+        // レビューの更新処理
         $review->title = $validatedData['title'];
         $review->body = $validatedData['body'];
         $review->rating = $validatedData['rating'];
         $review->updated_at = now(); // 更新日時
         $review->save();
+
         // レスポンスデータの整形
         $responseData = [
             'id' => $review->id,
@@ -129,6 +138,7 @@ class ReviewController extends Controller
             'created_at' => $review->created_at,
             'updated_at' => $review->updated_at,
         ];
+
         return response()->json([
             'message' => 'Review updated successfully',
             'data' => $responseData // 更新後のレビュー情報

@@ -6,24 +6,59 @@ use App\Http\Controllers\Controller;
 use App\Models\Product;
 use Illuminate\Http\Request;
 
+use function PHPUnit\Framework\isEmpty;
+
 class ProductController extends Controller
 {
     // GET /products
     public function index(Request $request)
     {
         // クエリパラメータから検索条件を取得
-        $query = $request->query('q', '');
-        if ($query) {
+        $request->validate([
+            'q' => 'nullable|string|max:255', // 検索クエリのバリデーション
+            'page' => 'nullable|integer|min:1', // ページ番号のバリデーション
+            'limit' => 'nullable|integer|min:1|max:100', // 1ページあたりの件数のバリデーション
+            'sort' => 'nullable|string|in:name,rating,download_count,created_at', // ソート条件のバリデーション
+        ]);
+        $query = Product::query();
+        if($request->filled('q')) {
             // 製品名で検索
-            $products = Product::where('name', 'like', '%' . $query . '%')->paginate(10);
-        } else {
-            // パラメータが無い場合すべての製品を取得
-            $products = Product::paginate(10); // 1ページ10件ずつ取得
+            $query->where('name', 'like', '%' . $request->q . '%');
+        }
+        switch ($request->sort) {
+            case 'name':
+                $query->orderBy('name');
+                break;
+            case 'rating':
+                $query->orderBy('rating', 'desc');
+                break;
+            case 'download_count':
+                $query->orderBy('download_count', 'desc');
+                break;
+            case 'created_at':
+                $query->orderBy('created_at', 'desc');
+                break;
+            default:
+                $query->orderBy('created_at', 'desc'); // デフォルトは作成日時でソート
+        }
+        // ページネーションの設定
+        $limit = $request->input('limit', 10); // デフォルトは10でとりあえず
+        $products = $query->paginate($limit);
+        // 製品が見つからなかった場合の処理
+        if(isEmpty($products)) {
+            return response()->json([
+                'message' => 'No products found',
+                'items' => null
+            ], 404);
         }
 
         return response()->json([
             'message' => 'List of products',
-            'data' => $products // 製品データの配列
+            'items' => $products->items(), // 製品データの配列
+            'total' => $products->total(), // 総件数
+            'current_page' => $products->currentPage(), // 現在のページ番号
+            'last_page' => $products->lastPage(), // 最終ページ番号
+            'per_page' => $products->perPage(), // 1ページあたりの件数
         ]);
     }
 

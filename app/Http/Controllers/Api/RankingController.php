@@ -16,7 +16,7 @@ class RankingController extends Controller
                         ->get();
         return response()->json([
             'message' => 'Ranking result',
-            'data' => $rankings // ランキング結果データ
+            'items' => $rankings // ランキング結果データ
         ]);
     }
 }
