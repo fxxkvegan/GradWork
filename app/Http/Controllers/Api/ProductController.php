@@ -33,14 +33,14 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'raiting' => 'nullable|numeric|min:0|max:5',
+            'rating' => 'nullable|numeric|min:0|max:5',
             'download_count' => 'nullable|integer|min:0',
         ]);
         $product = Product::create([
             'id' => $request->id, // IDは自動生成されるため通常は不要
             'name' => $request->name,
             'description' => $request->description,
-            'raiting' => $request->raiting,
+            'rating' => $request->rating,
             'download_count' => $request->download_count,
             'created_at' => now(), // 作成日時
             'updated_at' => now(), // 更新日時
@@ -82,7 +82,7 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
-            'raiting' => 'nullable|numeric|min:0|max:5',
+            'rating' => 'nullable|numeric|min:0|max:5',
             'download_count' => 'nullable|integer|min:0',
         ]);
         $productId = intval($productId);
@@ -95,7 +95,7 @@ class ProductController extends Controller
         $product = Product::findOrFail($productId);
         $product->name = $request->name;
         $product->description = $request->description;
-        $product->raiting = $request->raiting;
+        $product->rating = $request->rating;
         $product->download_count = $request->download_count;
         $product->updated_at = now();
 
