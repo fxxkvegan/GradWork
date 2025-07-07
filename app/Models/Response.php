@@ -8,7 +8,6 @@ class Response extends Model
 {
     // レスポンスモデルの定義
     protected $fillable = [
-        'id',
         'review_id',
         'author_id',
         'body',
