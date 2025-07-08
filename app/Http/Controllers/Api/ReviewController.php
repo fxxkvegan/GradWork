@@ -113,13 +113,6 @@ class ReviewController extends Controller
             'rating' => 'required|integer|min:1|max:5',
         ]);
         $review = Review::findOrFail($reviewId);
-        // レビューが存在しない場合の処理
-        if (!$review) {
-            return response()->json([
-                'message' => 'Review not found',
-                'data' => $reviewId
-            ], 404);
-        }
         // レビューの更新処理
         $review->title = $validatedData['title'];
         $review->body = $validatedData['body'];
@@ -158,12 +151,6 @@ class ReviewController extends Controller
         }
         // 指定レビューの削除処理
         $review = Review::findOrFail($reviewId);
-        if (!$review) {
-            return response()->json([
-                'message' => 'Review not found',
-                'data' => $reviewId
-            ], 404);
-        }
         $review->delete();
     
         return response()->json(null, 204);
@@ -181,12 +168,6 @@ class ReviewController extends Controller
             ], 400);
         }
         $review = Review::findOrFail($reviewId);
-        if (!$review) {
-            return response()->json([
-                'message' => 'Review not found',
-                'data' => $reviewId
-            ], 404);
-        }
         $review->helpful_count += 1; // いいね数を増やす
         $review->save();
         return response()->json(null, 204);
@@ -204,12 +185,6 @@ class ReviewController extends Controller
             ], 400);
         }
         $review = Review::findOrFail($reviewId);
-        if (!$review) {
-            return response()->json([
-                'message' => 'Review not found',
-                'data' => $reviewId
-            ], 404);
-        }
         $reviewResponses = $review->responses; // レビューに紐づくレスポンスを取得
         // レスポンスが存在しない場合の処理
         if ($reviewResponses->isEmpty()) {
@@ -250,12 +225,6 @@ class ReviewController extends Controller
             'body' => 'required|string',
         ]);
         $review = Review::findOrFail($reviewId);
-        if (!$review) {
-            return response()->json([
-                'message' => 'Review not found',
-                'data' => $reviewId
-            ], 404);
-        }
         $responseData = Response::create([
             'review_id' => $reviewId,
             'author_id' => Auth::id(), // 認証済みユーザーのIDを使用

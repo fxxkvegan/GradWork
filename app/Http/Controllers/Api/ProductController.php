@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductStatus;
+use App\Models\Version;
 use Illuminate\Http\Request;
 
 use function PHPUnit\Framework\isEmpty;
@@ -147,6 +149,12 @@ class ProductController extends Controller
     {
         //製品の削除
         $productId = intval($productId);
+        if ($productId <= 0) {    
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
         $product = Product::findOrFail($productId);
         $product->delete();
     
@@ -157,9 +165,17 @@ class ProductController extends Controller
     public function versions($productId)
     {
         // TODO: 製品のバージョン履歴を取得する処理
+        $productId = intval($productId);
+        if ($productId <= 0) {
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
+        $response = Version::findOrFail($productId);
         return response()->json([
             'message' => 'List of versions',
-            'data' => [] // バージョン情報の配列
+            'items' => $response // バージョン情報の配列
         ]);
     }
 
@@ -167,9 +183,17 @@ class ProductController extends Controller
     public function status($productId)
     {
         // TODO: 製品の状態（online, maintenance, deprecated等）の取得処理
+        $productId = intval($productId);
+        if ($productId <= 0) {
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
+        $response = ProductStatus::findOrFail($productId);
         return response()->json([
             'message' => 'Product status',
-            'data' => [] // 状態情報
+            'data' => $response // 状態情報
         ]);
     }
 }
