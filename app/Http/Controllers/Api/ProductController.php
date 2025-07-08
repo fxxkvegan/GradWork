@@ -7,7 +7,6 @@ use App\Models\Product;
 use App\Models\ProductStatus;
 use App\Models\Version;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
