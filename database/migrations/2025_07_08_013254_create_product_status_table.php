@@ -11,10 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('product_status', function (Blueprint $table) {
+        Schema::create('product_statuses', function (Blueprint $table) {
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
-            $table->enum('statsus', [
+            $table->enum('status', [
                 'online',
                 'maintenance',
                 'deprecated'

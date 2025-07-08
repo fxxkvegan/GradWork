@@ -9,7 +9,7 @@ class Version extends Model
     protected $fillable = [
         'product_id',
         'version',
-        'releaseNote',
+        'releaseNotes',
         'releaseAt',
     ];
 

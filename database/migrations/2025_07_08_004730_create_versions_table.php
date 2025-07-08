@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('version');
             $table->text('releaseNotes')->nullable();
             $table->date('releaseAt')->nullable();
+            $table->timestamps();
         });
     }
 

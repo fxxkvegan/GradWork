@@ -7,8 +7,7 @@ use App\Models\Product;
 use App\Models\ProductStatus;
 use App\Models\Version;
 use Illuminate\Http\Request;
-
-use function PHPUnit\Framework\isEmpty;
+use Illuminate\Support\Facades\Auth;
 
 class ProductController extends Controller
 {
@@ -47,7 +46,7 @@ class ProductController extends Controller
         $limit = $request->input('limit', 10); // デフォルトは10でとりあえず
         $products = $query->paginate($limit);
         // 製品が見つからなかった場合の処理
-        if(isEmpty($products)) {
+        if($products->isEmpty()) {
             return response()->json([
                 'message' => 'No products found',
                 'items' => null
@@ -172,10 +171,10 @@ class ProductController extends Controller
                 'data' => $productId
             ], 400);
         }
-        $response = Version::findOrFail($productId);
+        $response = Version::where('product_id',$productId)->get();
         return response()->json([
             'message' => 'List of versions',
-            'items' => $response // バージョン情報の配列
+            'data' => $response // バージョン情報の配列
         ]);
     }
 
@@ -190,7 +189,7 @@ class ProductController extends Controller
                 'data' => $productId
             ], 400);
         }
-        $response = ProductStatus::findOrFail($productId);
+        $response = ProductStatus::where('product_id',$productId)->firstOrFail();
         return response()->json([
             'message' => 'Product status',
             'data' => $response // 状態情報
