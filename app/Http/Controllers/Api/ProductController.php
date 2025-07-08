@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductStatus;
+use App\Models\Version;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -12,18 +14,51 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         // クエリパラメータから検索条件を取得
-        $query = $request->query('q', '');
-        if ($query) {
+        $request->validate([
+            'q' => 'nullable|string|max:255', // 検索クエリのバリデーション
+            'page' => 'nullable|integer|min:1', // ページ番号のバリデーション
+            'limit' => 'nullable|integer|min:1|max:100', // 1ページあたりの件数のバリデーション
+            'sort' => 'nullable|string|in:name,rating,download_count,created_at', // ソート条件のバリデーション
+        ]);
+        $productsQuery = Product::query();
+        if($request->filled('q')) {
             // 製品名で検索
-            $products = Product::where('name', 'like', '%' . $query . '%')->paginate(10);
-        } else {
-            // パラメータが無い場合すべての製品を取得
-            $products = Product::paginate(10); // 1ページ10件ずつ取得
+            $productsQuery->where('name', 'like', '%' . $request->q . '%');
+        }
+        switch ($request->sort) {
+            case 'name':
+                $productsQuery->orderBy('name');
+                break;
+            case 'rating':
+                $productsQuery->orderBy('rating', 'desc');
+                break;
+            case 'download_count':
+                $productsQuery->orderBy('download_count', 'desc');
+                break;
+            case 'created_at':
+                $productsQuery->orderBy('created_at', 'desc');
+                break;
+            default:
+                $productsQuery->orderBy('created_at', 'desc'); // デフォルトは作成日時でソート
+        }
+        // ページネーションの設定
+        $limit = $request->input('limit', 10); // デフォルトは10でとりあえず
+        $products = $productsQuery->paginate($limit);
+        // 製品が見つからなかった場合の処理
+        if($products->isEmpty()) {
+            return response()->json([
+                'message' => 'No products found',
+                'items' => null
+            ], 200);
         }
 
         return response()->json([
             'message' => 'List of products',
-            'data' => $products // 製品データの配列
+            'items' => $products->items(), // 製品データの配列
+            'total' => $products->total(), // 総件数
+            'current_page' => $products->currentPage(), // 現在のページ番号
+            'last_page' => $products->lastPage(), // 最終ページ番号
+            'per_page' => $products->perPage(), // 1ページあたりの件数
         ]);
     }
 
@@ -112,6 +147,12 @@ class ProductController extends Controller
     {
         //製品の削除
         $productId = intval($productId);
+        if ($productId <= 0) {    
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
         $product = Product::findOrFail($productId);
         $product->delete();
     
@@ -122,9 +163,17 @@ class ProductController extends Controller
     public function versions($productId)
     {
         // TODO: 製品のバージョン履歴を取得する処理
+        $productId = intval($productId);
+        if ($productId <= 0) {
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
+        $response = Version::where('product_id',$productId)->get();
         return response()->json([
             'message' => 'List of versions',
-            'data' => [] // バージョン情報の配列
+            'data' => $response // バージョン情報の配列
         ]);
     }
 
@@ -132,9 +181,17 @@ class ProductController extends Controller
     public function status($productId)
     {
         // TODO: 製品の状態（online, maintenance, deprecated等）の取得処理
+        $productId = intval($productId);
+        if ($productId <= 0) {
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
+        $response = ProductStatus::where('product_id',$productId)->firstOrFail();
         return response()->json([
             'message' => 'Product status',
-            'data' => [] // 状態情報
+            'data' => $response // 状態情報
         ]);
     }
 }
