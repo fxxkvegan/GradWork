@@ -117,7 +117,6 @@ class ReviewController extends Controller
         $review->title = $validatedData['title'];
         $review->body = $validatedData['body'];
         $review->rating = $validatedData['rating'];
-        $review->updated_at = now(); // 更新日時
         $review->save();
 
         // レスポンスデータの整形
