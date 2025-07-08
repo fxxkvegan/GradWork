@@ -15,8 +15,8 @@ return new class extends Migration
             $table->id();
             $table->foreignId('product_id')->constrained()->onDelete('cascade');
             $table->string('version');
-            $table->text('releaseNotes')->nullable();
-            $table->date('releaseAt')->nullable();
+            $table->text('release_notes')->nullable();
+            $table->date('release_at')->nullable();
             $table->timestamps();
         });
     }
