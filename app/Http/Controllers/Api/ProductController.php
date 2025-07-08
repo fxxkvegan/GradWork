@@ -20,36 +20,36 @@ class ProductController extends Controller
             'limit' => 'nullable|integer|min:1|max:100', // 1ページあたりの件数のバリデーション
             'sort' => 'nullable|string|in:name,rating,download_count,created_at', // ソート条件のバリデーション
         ]);
-        $query = Product::query();
+        $productsQuery = Product::query();
         if($request->filled('q')) {
             // 製品名で検索
-            $query->where('name', 'like', '%' . $request->q . '%');
+            $productsQuery->where('name', 'like', '%' . $request->q . '%');
         }
         switch ($request->sort) {
             case 'name':
-                $query->orderBy('name');
+                $productsQuery->orderBy('name');
                 break;
             case 'rating':
-                $query->orderBy('rating', 'desc');
+                $productsQuery->orderBy('rating', 'desc');
                 break;
             case 'download_count':
-                $query->orderBy('download_count', 'desc');
+                $productsQuery->orderBy('download_count', 'desc');
                 break;
             case 'created_at':
-                $query->orderBy('created_at', 'desc');
+                $productsQuery->orderBy('created_at', 'desc');
                 break;
             default:
-                $query->orderBy('created_at', 'desc'); // デフォルトは作成日時でソート
+                $productsQuery->orderBy('created_at', 'desc'); // デフォルトは作成日時でソート
         }
         // ページネーションの設定
         $limit = $request->input('limit', 10); // デフォルトは10でとりあえず
-        $products = $query->paginate($limit);
+        $products = $productsQuery->paginate($limit);
         // 製品が見つからなかった場合の処理
         if($products->isEmpty()) {
             return response()->json([
                 'message' => 'No products found',
                 'items' => null
-            ], 404);
+            ], 200);
         }
 
         return response()->json([

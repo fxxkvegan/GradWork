@@ -52,7 +52,7 @@ class ReviewController extends Controller
         });
         return response()->json([
             'message' => 'List of reviews',
-            'items' => $reviews // レビュー一覧データ
+            'data' => $reviews // レビュー一覧データ
         ]);
     }
 
