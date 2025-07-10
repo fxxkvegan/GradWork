@@ -26,6 +26,18 @@ class Product extends Model
         return $this->hasMany(Review::class);
     }
 
+    // リレーション: 製品と複数のカテゴリ（多対多）
+    public function categories()
+    {
+        return $this->belongsToMany(Category::class, 'product_categories');
+    }
+
+    // categoryIdsのアクセサ（Swagger仕様に合わせて）
+    public function getCategoryIdsAttribute()
+    {
+        return $this->categories->pluck('id')->toArray();
+    }
+
     // 平均評価を取得するアクセサ（オプション）
     public function getAverageRatingAttribute()
     {

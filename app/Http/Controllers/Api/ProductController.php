@@ -16,14 +16,25 @@ class ProductController extends Controller
         // クエリパラメータから検索条件を取得
         $request->validate([
             'q' => 'nullable|string|max:255', // 検索クエリのバリデーション
+            'categoryIds' => 'nullable|array', // カテゴリIDの配列
+            'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
             'page' => 'nullable|integer|min:1', // ページ番号のバリデーション
             'limit' => 'nullable|integer|min:1|max:100', // 1ページあたりの件数のバリデーション
             'sort' => 'nullable|string|in:name,rating,download_count,created_at', // ソート条件のバリデーション
         ]);
-        $productsQuery = Product::query();
+        
+        $productsQuery = Product::with('categories');
+        
         if($request->filled('q')) {
             // 製品名で検索
             $productsQuery->where('name', 'like', '%' . $request->q . '%');
+        }
+
+        // カテゴリフィルター
+        if($request->filled('categoryIds')) {
+            $productsQuery->whereHas('categories', function($query) use ($request) {
+                $query->whereIn('categories.id', $request->categoryIds);
+            });
         }
         switch ($request->sort) {
             case 'name':
@@ -68,18 +79,27 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'categoryIds' => 'nullable|array', // カテゴリIDの配列
+            'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
             'rating' => 'nullable|numeric|min:0|max:5',
             'download_count' => 'nullable|integer|min:0',
         ]);
+        
         $product = Product::create([
-            'id' => $request->id, // IDは自動生成されるため通常は不要
             'name' => $request->name,
             'description' => $request->description,
             'rating' => $request->rating,
             'download_count' => $request->download_count,
-            'created_at' => now(), // 作成日時
-            'updated_at' => now(), // 更新日時
         ]);
+
+        // カテゴリの関連付け
+        if ($request->filled('categoryIds')) {
+            $product->categories()->attach($request->categoryIds);
+        }
+
+        // カテゴリ情報も含めて返す
+        $product->load('categories');
+        
         // 製品情報が正常でなかった場合
         if (!$product) {
             return response()->json([
@@ -103,10 +123,12 @@ class ProductController extends Controller
                 'data' => $productId
             ], 400);
         }
-        $product = Product::findOrFail($productId);
+        
+        $product = Product::with('categories')->findOrFail($productId);
+        
         return response()->json([
             'message' => 'Product details',
-            'data' => $product  // 製品詳細データ
+            'data' => $product  // 製品詳細データ（categoryIdsも含む）
         ]);
     }
 
@@ -117,9 +139,12 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'categoryIds' => 'nullable|array', // カテゴリIDの配列
+            'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
             'rating' => 'nullable|numeric|min:0|max:5',
             'download_count' => 'nullable|integer|min:0',
         ]);
+        
         $productId = intval($productId);
         if ($productId <= 0) {    
             return response()->json([
@@ -127,14 +152,21 @@ class ProductController extends Controller
                 'data' => $productId
             ], 400);
         }
+        
         $product = Product::findOrFail($productId);
         $product->name = $request->name;
         $product->description = $request->description;
         $product->rating = $request->rating;
         $product->download_count = $request->download_count;
-        $product->updated_at = now();
-
         $product->save();
+
+        // カテゴリの更新
+        if ($request->has('categoryIds')) {
+            $product->categories()->sync($request->categoryIds);
+        }
+
+        // カテゴリ情報も含めて返す
+        $product->load('categories');
 
         return response()->json([
             'message' => 'Product updated successfully',

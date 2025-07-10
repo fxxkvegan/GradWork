@@ -35,6 +35,15 @@ paths:
             type: string
           description: Keyword search
         - in: query
+          name: categoryIds
+          schema:
+            type: array
+            items:
+              type: string
+          style: form
+          explode: false
+          description: Filter by category IDs (comma-separated)
+        - in: query
           name: sort
           schema:
             type: string
@@ -426,6 +435,11 @@ components:
           type: string
         description:
           type: string
+        categoryIds:
+          type: array
+          items:
+            type: string
+          description: Category IDs assigned to this product
         rating:
           type: number
           format: float
@@ -439,12 +453,30 @@ components:
           format: date-time
       required: [id, name]
     ProductCreate:
-      allOf:
-        - $ref: "#/components/schemas/Product"
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        categoryIds:
+          type: array
+          items:
+            type: string
+          description: Category IDs to assign to this product
       required: [name, description]
     ProductUpdate:
-      allOf:
-        - $ref: "#/components/schemas/Product"
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        categoryIds:
+          type: array
+          items:
+            type: string
+          description: Category IDs to assign to this product
     ProductList:
       type: object
       properties:
