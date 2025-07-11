@@ -41,6 +41,6 @@ class Product extends Model
     // 平均評価を取得するアクセサ（オプション）
     public function getAverageRatingAttribute()
     {
-        return $this->reviews()->avg('rating');
+        return $this->reviews()->avg('rating') ?? 0;
     }
 }

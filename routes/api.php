@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\RankingController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\AuthController;
@@ -20,6 +21,14 @@ Route::put('/products/{productId}', [ProductController::class, 'update'])->middl
 Route::delete('/products/{productId}', [ProductController::class, 'destroy'])->middleware('auth:api');
 Route::get('/products/{productId}/versions', [ProductController::class, 'versions']);
 Route::get('/products/{productId}/status', [ProductController::class, 'status']);
+
+// Categories routes
+Route::get('/categories', [CategoryController::class, 'index']);
+Route::post('/categories', [CategoryController::class, 'store'])->middleware('auth:api');
+Route::get('/categories/{categoryId}', [CategoryController::class, 'show']);
+Route::put('/categories/{categoryId}', [CategoryController::class, 'update'])->middleware('auth:api');
+Route::delete('/categories/{categoryId}', [CategoryController::class, 'destroy'])->middleware('auth:api');
+Route::get('/categories/{categoryId}/products', [CategoryController::class, 'products']);
 
 // Rankings route
 Route::get('/rankings', [RankingController::class, 'index']);
