@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\ProductStatus;
+use App\Models\Version;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
@@ -12,18 +14,64 @@ class ProductController extends Controller
     public function index(Request $request)
     {
         // クエリパラメータから検索条件を取得
-        $query = $request->query('q', '');
-        if ($query) {
+        $request->validate([
+            'q' => 'nullable|string|max:255', // 検索クエリのバリデーション
+            'categoryIds' => 'nullable|array', // カテゴリIDの配列
+            'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
+            'page' => 'nullable|integer|min:1', // ページ番号のバリデーション
+            'limit' => 'nullable|integer|min:1|max:100', // 1ページあたりの件数のバリデーション
+            'sort' => 'nullable|string|in:name,rating,download_count,created_at', // ソート条件のバリデーション
+        ]);
+        
+        $productsQuery = Product::with('categories');
+        
+        if($request->filled('q')) {
             // 製品名で検索
-            $products = Product::where('name', 'like', '%' . $query . '%')->paginate(10);
-        } else {
-            // パラメータが無い場合すべての製品を取得
-            $products = Product::paginate(10); // 1ページ10件ずつ取得
+            $productsQuery->where('name', 'like', '%' . $request->q . '%');
+        }
+
+        // カテゴリフィルター
+        if($request->filled('categoryIds')) {
+            $productsQuery->whereHas('categories', function($query) use ($request) {
+                $query->whereIn('categories.id', $request->categoryIds);
+            });
+        }
+        switch ($request->sort) {
+            case 'name':
+                $productsQuery->orderBy('name');
+                break;
+            case 'rating':
+                $productsQuery->orderBy('rating', 'desc');
+                break;
+            case 'download_count':
+                $productsQuery->orderBy('download_count', 'desc');
+                break;
+            case 'created_at':
+                $productsQuery->orderBy('created_at', 'desc');
+                break;
+            default:
+                $productsQuery->orderBy('created_at', 'desc'); // デフォルトは作成日時でソート
+        }
+        // ページネーションの設定
+        $limit = $request->input('limit', 10); // デフォルトは10でとりあえず
+        $products = $productsQuery->paginate($limit);
+        // 製品が見つからなかった場合の処理
+        if($products->isEmpty()) {
+            return response()->json([
+                'message' => 'No products found',
+                'items' => null
+            ], 200);
         }
 
         return response()->json([
-            'message' => 'List of products',
-            'data' => $products // 製品データの配列
+            'items' => $products->items(), // 製品データの配列
+            'total' => $products->total(), // 総件数
+            'currentPage' => $products->currentPage(), // 現在のページ番号
+            'lastPage' => $products->lastPage(), // 最終ページ番号
+            'perPage' => $products->perPage(), // 1ページあたりの件数
+            'nextPageUrl' => $products->nextPageUrl(), // 次のページのURL
+            'prevPageUrl' => $products->previousPageUrl(), // 前のページのURL
+            'message' => 'Product list retrieved successfully'
         ]);
     }
 
@@ -33,29 +81,28 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'categoryIds' => 'nullable|array', // カテゴリIDの配列
+            'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
             'rating' => 'nullable|numeric|min:0|max:5',
             'download_count' => 'nullable|integer|min:0',
         ]);
+        
         $product = Product::create([
-            'id' => $request->id, // IDは自動生成されるため通常は不要
             'name' => $request->name,
             'description' => $request->description,
             'rating' => $request->rating,
             'download_count' => $request->download_count,
-            'created_at' => now(), // 作成日時
-            'updated_at' => now(), // 更新日時
         ]);
-        // 製品情報が正常でなかった場合
-        if (!$product) {
-            return response()->json([
-                'message' => 'Failed to create product',
-                'data' => null
-            ], 500);
+
+        // カテゴリの関連付け
+        if ($request->filled('categoryIds')) {
+            $product->categories()->attach($request->categoryIds);
         }
-        return response()->json([
-            'message' => 'Product created successfully',
-            'data' => $product // 作成された製品情報
-        ], 201);
+
+        // カテゴリ情報を含めて返す
+        $product->load('categories');
+
+        return response()->json($product, 201);
     }
 
     // GET /products/{productId}
@@ -64,15 +111,13 @@ class ProductController extends Controller
         $productId = intval($productId);
         if ($productId <= 0) {    
             return response()->json([
-                'message' => 'Invalid product ID',
-                'data' => $productId
+                'message' => 'Invalid product ID'
             ], 400);
         }
-        $product = Product::findOrFail($productId);
-        return response()->json([
-            'message' => 'Product details',
-            'data' => $product  // 製品詳細データ
-        ]);
+        
+        $product = Product::with('categories')->findOrFail($productId);
+        
+        return response()->json($product);
     }
 
     // PUT /products/{productId}
@@ -82,29 +127,36 @@ class ProductController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
+            'categoryIds' => 'nullable|array', // カテゴリIDの配列
+            'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
             'rating' => 'nullable|numeric|min:0|max:5',
             'download_count' => 'nullable|integer|min:0',
         ]);
+        
         $productId = intval($productId);
         if ($productId <= 0) {    
             return response()->json([
-                'message' => 'Invalid product ID',
-                'data' => $productId
+                'message' => 'Invalid product ID'
             ], 400);
         }
+        
         $product = Product::findOrFail($productId);
-        $product->name = $request->name;
-        $product->description = $request->description;
-        $product->rating = $request->rating;
-        $product->download_count = $request->download_count;
-        $product->updated_at = now();
-
-        $product->save();
-
-        return response()->json([
-            'message' => 'Product updated successfully',
-            'data' => $product // 更新後の製品情報
+        $product->update([
+            'name' => $request->name,
+            'description' => $request->description,
+            'rating' => $request->rating,
+            'download_count' => $request->download_count,
         ]);
+
+        // カテゴリの更新
+        if ($request->has('categoryIds')) {
+            $product->categories()->sync($request->categoryIds);
+        }
+
+        // カテゴリ情報を含めて返す
+        $product->load('categories');
+
+        return response()->json($product);
     }
 
     // DELETE /products/{productId}
@@ -112,6 +164,12 @@ class ProductController extends Controller
     {
         //製品の削除
         $productId = intval($productId);
+        if ($productId <= 0) {    
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
         $product = Product::findOrFail($productId);
         $product->delete();
     
@@ -122,9 +180,17 @@ class ProductController extends Controller
     public function versions($productId)
     {
         // TODO: 製品のバージョン履歴を取得する処理
+        $productId = intval($productId);
+        if ($productId <= 0) {
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
+        $response = Version::where('product_id',$productId)->get();
         return response()->json([
             'message' => 'List of versions',
-            'data' => [] // バージョン情報の配列
+            'data' => $response // バージョン情報の配列
         ]);
     }
 
@@ -132,9 +198,17 @@ class ProductController extends Controller
     public function status($productId)
     {
         // TODO: 製品の状態（online, maintenance, deprecated等）の取得処理
+        $productId = intval($productId);
+        if ($productId <= 0) {
+            return response()->json([
+                'message' => 'Invalid product ID',
+                'data' => $productId
+            ], 400);
+        }
+        $response = ProductStatus::where('product_id',$productId)->firstOrFail();
         return response()->json([
             'message' => 'Product status',
-            'data' => [] // 状態情報
+            'data' => $response // 状態情報
         ]);
     }
 }
