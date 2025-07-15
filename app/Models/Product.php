@@ -20,6 +20,11 @@ class Product extends Model
         'download_count' => 'integer',
     ];
 
+    protected $appends = ['categoryIds'];
+
+    // categoriesリレーションを隠す（categoryIdsアクセサで表示）
+    protected $hidden = ['categories'];
+
     // リレーション: 1つの製品に複数のレビュー
     public function reviews()
     {
@@ -35,7 +40,20 @@ class Product extends Model
     // categoryIdsのアクセサ（Swagger仕様に合わせて）
     public function getCategoryIdsAttribute()
     {
-        return $this->categories->pluck('id')->toArray();
+        if ($this->relationLoaded('categories')) {
+            return $this->categories->pluck('id')->map(function($id) {
+                return (string) $id;
+            })->toArray();
+        }
+        return $this->categories()->pluck('categories.id')->map(function($id) {
+            return (string) $id;
+        })->toArray();
+    }
+
+    // downloadCountのアクセサ（Swagger仕様に合わせて）
+    public function getDownloadCountAttribute($value)
+    {
+        return $this->attributes['download_count'];
     }
 
     // 平均評価を取得するアクセサ（オプション）

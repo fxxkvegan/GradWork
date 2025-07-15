@@ -64,12 +64,14 @@ class ProductController extends Controller
         }
 
         return response()->json([
-            'message' => 'List of products',
             'items' => $products->items(), // 製品データの配列
             'total' => $products->total(), // 総件数
-            'current_page' => $products->currentPage(), // 現在のページ番号
-            'last_page' => $products->lastPage(), // 最終ページ番号
-            'per_page' => $products->perPage(), // 1ページあたりの件数
+            'currentPage' => $products->currentPage(), // 現在のページ番号
+            'lastPage' => $products->lastPage(), // 最終ページ番号
+            'perPage' => $products->perPage(), // 1ページあたりの件数
+            'nextPageUrl' => $products->nextPageUrl(), // 次のページのURL
+            'prevPageUrl' => $products->previousPageUrl(), // 前のページのURL
+            'message' => 'Product list retrieved successfully'
         ]);
     }
 
@@ -97,20 +99,10 @@ class ProductController extends Controller
             $product->categories()->attach($request->categoryIds);
         }
 
-        // カテゴリ情報も含めて返す
+        // カテゴリ情報を含めて返す
         $product->load('categories');
-        
-        // 製品情報が正常でなかった場合
-        if (!$product) {
-            return response()->json([
-                'message' => 'Failed to create product',
-                'data' => null
-            ], 500);
-        }
-        return response()->json([
-            'message' => 'Product created successfully',
-            'data' => $product // 作成された製品情報
-        ], 201);
+
+        return response()->json($product, 201);
     }
 
     // GET /products/{productId}
@@ -119,17 +111,13 @@ class ProductController extends Controller
         $productId = intval($productId);
         if ($productId <= 0) {    
             return response()->json([
-                'message' => 'Invalid product ID',
-                'data' => $productId
+                'message' => 'Invalid product ID'
             ], 400);
         }
         
         $product = Product::with('categories')->findOrFail($productId);
         
-        return response()->json([
-            'message' => 'Product details',
-            'data' => $product  // 製品詳細データ（categoryIdsも含む）
-        ]);
+        return response()->json($product);
     }
 
     // PUT /products/{productId}
@@ -148,30 +136,27 @@ class ProductController extends Controller
         $productId = intval($productId);
         if ($productId <= 0) {    
             return response()->json([
-                'message' => 'Invalid product ID',
-                'data' => $productId
+                'message' => 'Invalid product ID'
             ], 400);
         }
         
         $product = Product::findOrFail($productId);
-        $product->name = $request->name;
-        $product->description = $request->description;
-        $product->rating = $request->rating;
-        $product->download_count = $request->download_count;
-        $product->save();
+        $product->update([
+            'name' => $request->name,
+            'description' => $request->description,
+            'rating' => $request->rating,
+            'download_count' => $request->download_count,
+        ]);
 
         // カテゴリの更新
         if ($request->has('categoryIds')) {
             $product->categories()->sync($request->categoryIds);
         }
 
-        // カテゴリ情報も含めて返す
+        // カテゴリ情報を含めて返す
         $product->load('categories');
 
-        return response()->json([
-            'message' => 'Product updated successfully',
-            'data' => $product // 更新後の製品情報
-        ]);
+        return response()->json($product);
     }
 
     // DELETE /products/{productId}

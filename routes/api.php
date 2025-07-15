@@ -25,10 +25,6 @@ Route::get('/products/{productId}/status', [ProductController::class, 'status'])
 // Categories routes
 Route::get('/categories', [CategoryController::class, 'index']);
 Route::post('/categories', [CategoryController::class, 'store'])->middleware('auth:api');
-Route::get('/categories/{categoryId}', [CategoryController::class, 'show']);
-Route::put('/categories/{categoryId}', [CategoryController::class, 'update'])->middleware('auth:api');
-Route::delete('/categories/{categoryId}', [CategoryController::class, 'destroy'])->middleware('auth:api');
-Route::get('/categories/{categoryId}/products', [CategoryController::class, 'products']);
 
 // Rankings route
 Route::get('/rankings', [RankingController::class, 'index']);
