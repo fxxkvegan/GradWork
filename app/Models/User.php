@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\AuthController;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
-use laravel\sanctum\HasApiTokens;
+use Laravel\sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     use Notifiable, HasApiTokens;
