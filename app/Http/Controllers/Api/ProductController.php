@@ -7,7 +7,7 @@ use App\Models\Product;
 use App\Models\ProductStatus;
 use App\Models\Version;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Storage;
 class ProductController extends Controller
 {
     // GET /products
@@ -92,8 +92,14 @@ class ProductController extends Controller
             'description' => $request->description,
             'rating' => $request->rating,
             'download_count' => $request->download_count,
+            'image_url' => $request->image_url ? Storage::url($request->image_url) : null, // 画像URLの保存
         ]);
 
+        Storage::putFileAs(
+            'public/products', // ストレージのパス
+            $request->file('image_url'), // アップロードされたファイル
+            $product->id . '.' . $request->file('image_url')->getClientOriginalExtension() || null,
+            );
         // カテゴリの関連付け
         if ($request->filled('categoryIds')) {
             $product->categories()->attach($request->categoryIds);
@@ -131,6 +137,7 @@ class ProductController extends Controller
             'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
             'rating' => 'nullable|numeric|min:0|max:5',
             'download_count' => 'nullable|integer|min:0',
+            'image_url' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048', // 画像のバリデーション
         ]);
         
         $productId = intval($productId);
@@ -146,8 +153,15 @@ class ProductController extends Controller
             'description' => $request->description,
             'rating' => $request->rating,
             'download_count' => $request->download_count,
+            'image_url' => $request->image_url ? Storage::url($request->image_url) : $product->image_url, // 画像URLの更新
         ]);
-
+        if ($request->hasFile('image_url')) {
+            Storage::putFileAs(
+                'public/products', // ストレージのパス
+                $request->file('image_url'), // アップロードされたファイル
+                $product->id . '.' . $request->file('image_url')->getClientOriginalExtension() || null,
+            );
+        }
         // カテゴリの更新
         if ($request->has('categoryIds')) {
             $product->categories()->sync($request->categoryIds);
