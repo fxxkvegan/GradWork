@@ -8,6 +8,15 @@ use Illuminate\Http\Request;
 
 class UserController extends Controller
 {
+    public function allusers()
+    {
+        $responseData = User::all();
+        
+        return response()->json([
+            'message' => 'User profile',
+            'data' => $responseData // ユーザー情報
+        ]);
+    }
     // GET /users/me
     public function profile($userId)
     {
