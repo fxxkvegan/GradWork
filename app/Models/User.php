@@ -2,11 +2,9 @@
 
 namespace App\Models;
 
-use App\Http\Controllers\Api\AuthController;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Notifications\Notifiable;
-use Laravel\sanctum\HasApiTokens;
+use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     use Notifiable, HasApiTokens;
