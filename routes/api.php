@@ -43,7 +43,6 @@ Route::post('/reviews/{reviewId}/responses', [ReviewController::class, 'storeRes
 // Auth routes
 Route::post('/auth/login', [AuthController::class, 'login']);
 Route::post('/auth/signup', [AuthController::class, 'signup']);
-Route::get('/auth/signup', [AuthController::class, 'signup']);
 Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:api');
 // User routes
 Route::get('/users/me', [UserController::class, 'profile'])->middleware('auth:api');
