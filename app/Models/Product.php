@@ -11,6 +11,7 @@ class Product extends Model
         'description',
         'rating',
         'download_count',
+        'image_url',
     ];
 
     protected $casts = [
@@ -18,6 +19,7 @@ class Product extends Model
         'updated_at' => 'datetime',
         'rating' => 'float',
         'download_count' => 'integer',
+        'image_url' => 'string',
     ];
 
     protected $appends = ['categoryIds'];
