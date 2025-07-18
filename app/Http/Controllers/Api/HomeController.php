@@ -16,7 +16,19 @@ class HomeController extends Controller
         // TODO: ランディングページ用の集約データ取得処理
         $rankingController = new RankingController();
         $topRanked = $rankingController->index(new Request());
+        if ($topRanked->isEmpty()) {
+            return response()->json([
+                'message' => 'No top ranked products found',
+                'data' => [null]
+            ], 404);
+        }
         $trending = $this->getTrendingProducts();
+        if ($trending->isEmpty()) {
+            return response()->json([
+                'message' => 'No trending products found',
+                'data' => [null]
+            ], 404);
+        }
         return response()->json([
             'message' => 'Aggregated home data',
             'data' => [
