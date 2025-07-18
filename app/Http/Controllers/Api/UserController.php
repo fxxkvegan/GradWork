@@ -10,11 +10,11 @@ class UserController extends Controller
 {
     public function allusers()
     {
-        $responseData = User::all();
+        $users = User::select('id', 'name', 'email', 'avatar_url', 'locale', 'theme', 'created_at')->get();
         
         return response()->json([
             'message' => 'User profile',
-            'data' => $responseData // ユーザー情報
+            'data' => $users// ユーザー情報
         ]);
     }
     // GET /users/me
