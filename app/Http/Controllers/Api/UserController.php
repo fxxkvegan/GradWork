@@ -10,17 +10,20 @@ class UserController extends Controller
 {
     public function allusers()
     {
-        $users = User::select('id', 'name', 'email', 'avatar_url', 'locale', 'theme', 'created_at')->get();
-        if ($users->isEmpty()) {
+        try {
+            $users = User::select('id', 'name', 'email', 'avatar_url', 'locale', 'theme', 'created_at')->get();
+            
             return response()->json([
-                'message' => 'No users found',
-                'data' => []
-            ], 404);
-        };
-        return response()->json([
-            'message' => 'User profile',
-            'data' => $users// ユーザー情報
-        ]);
+                'message' => 'All users retrieved successfully',
+                'data' => $users
+            ], 200);
+            
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Error retrieving users',
+                'error' => $e->getMessage()
+            ], 500);
+        }
     }
     // GET /users/me
     public function profile($userId)
