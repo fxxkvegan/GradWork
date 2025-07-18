@@ -14,6 +14,13 @@ class RankingController extends Controller
         $rankings = Product::orderBy('rating', 'desc')
                         ->take(5)
                         ->get();
+        // ランキングが見つからなかった場合の処理
+        if ($rankings->isEmpty()) {
+            return response()->json([
+                'message' => 'No rankings found',
+                'data' => null
+            ], 404);
+        }
         return response()->json([
             'message' => 'Ranking result',
             'items' => $rankings // ランキング結果データ

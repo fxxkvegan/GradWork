@@ -16,14 +16,14 @@ class HomeController extends Controller
         // TODO: ランディングページ用の集約データ取得処理
         $rankingController = new RankingController();
         $topRanked = $rankingController->index(new Request());
-        if ($topRanked->isEmpty()) {
+        if ($topRanked->isEmpty()) {    //ランキングがからの場合の例外処理
             return response()->json([
                 'message' => 'No top ranked products found',
                 'data' => [null]
             ], 404);
         }
         $trending = $this->getTrendingProducts();
-        if ($trending->isEmpty()) {
+        if ($trending->isEmpty()) {     //トレンド商品がからの場合の例外処理
             return response()->json([
                 'message' => 'No trending products found',
                 'data' => [null]
