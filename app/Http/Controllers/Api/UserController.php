@@ -11,7 +11,12 @@ class UserController extends Controller
     public function allusers()
     {
         $users = User::select('id', 'name', 'email', 'avatar_url', 'locale', 'theme', 'created_at')->get();
-        
+        if ($users->isEmpty()) {
+            return response()->json([
+                'message' => 'No users found',
+                'data' => []
+            ], 404);
+        };
         return response()->json([
             'message' => 'User profile',
             'data' => $users// ユーザー情報
