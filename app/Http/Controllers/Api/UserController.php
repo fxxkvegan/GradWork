@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 
 class UserController extends Controller
@@ -26,9 +27,10 @@ class UserController extends Controller
         }
     }
     // GET /users/me
-    public function profile($userId)
+    public function profile()
     {
         // TODO: 自分のプロフィール取得処理
+        $userId = Auth::id(); // 現在のユーザーIDを取得
         $userId = intval($userId);
         if (!is_numeric($userId) || $userId <= 0) {
             return response()->json([
@@ -60,8 +62,9 @@ class UserController extends Controller
     }
 
     // PUT /users/me
-    public function updateProfile($userId)
+    public function updateProfile()
     {
+        $userId = Auth::id(); // 現在のユーザーIDを取得
         $userId = intval($userId);
         if (!is_numeric($userId) || $userId <= 0) {
             return response()->json([
@@ -102,9 +105,29 @@ class UserController extends Controller
     public function getSettings()
     {
         // TODO: ユーザー設定の取得処理
+        $userId = Auth::id(); // 現在のユーザーIDを取得
+        if (!$userId) {
+            return response()->json([
+                'message' => 'User not authenticated',
+                'data' => null
+            ], 401);
+        };
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found',
+                'data' => null
+            ], 404);
+        };
+        // locale と theme のみを取得
+        $settings = [
+            'locale' => $user->locale,
+            'theme' => $user->theme,
+        ];
+
         return response()->json([
             'message' => 'User settings',
-            'data' => [] // 設定情報
+            'data' => $settings // 設定情報
         ]);
     }
 
@@ -112,6 +135,25 @@ class UserController extends Controller
     public function updateSettings(Request $request)
     {
         // TODO: ユーザー設定の更新処理
+        $userId = Auth::id(); // 現在のユーザーIDを取得
+        if (!$userId) {
+            return response()->json([
+                'message' => 'User not authenticated',
+                'data' => null
+            ], 401);
+        };
+        $user = User::find($userId);
+        if (!$user) {
+            return response()->json([
+                'message' => 'User not found',
+                'data' => null
+            ], 404);
+        };
+        // locale と theme の更新
+        $user->locale = $request->input('locale', $user->locale);
+        $user->theme = $request->input('theme', $user->theme);
+        $user->save();
+        
         return response()->json([
             'message' => 'Settings updated',
             'data' => [] // 更新後の設定情報
