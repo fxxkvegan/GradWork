@@ -26,6 +26,7 @@ class ProductSeeder extends Seeder
                 'description' => $faker->optional(0.7)->realText(120),
                 'rating' => $faker->randomFloat(1, 0, 5),
                 'download_count' => $faker->numberBetween(0, 10000),
+                'image_url' => 'https://picsum.photos/800',
                 'created_at' => $now,
                 'updated_at' => $now,
             ];
