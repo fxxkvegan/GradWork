@@ -78,28 +78,33 @@ class ProductController extends Controller
     // POST /products
     public function store(Request $request)
     {
+        dump($request->all());
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
             'categoryIds' => 'nullable|array', // カテゴリIDの配列
             'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
-            'rating' => 'nullable|numeric|min:0|max:5',
-            'download_count' => 'nullable|integer|min:0',
+            'image_url' => 'nullable|array|max:5', //とりあえず五枚まで
+            'image_url.*' => 'file|mimes:jpg,jpeg,png,gif|max:2048', // 画像のバリデーション
         ]);
+
+        $imageUrls = [];
+
+        if ($request->hasFile('image_url')) {
+            foreach ($request->file('image_url') as $file) {
+                $path = $file->store('public/products/images');
+                $imageUrls[] = Storage::url($path);
+            }
+        }
         
         $product = Product::create([
             'name' => $request->name,
             'description' => $request->description,
-            'rating' => $request->rating,
-            'download_count' => $request->download_count,
-            'image_url' => $request->image_url ? Storage::url($request->image_url) : null, // 画像URLの保存
+            'rating' => 0,          //初期値
+            'download_count' => 0,  //初期値
+            'image_url' => $imageUrls ? json_encode($imageUrls) : null, // 画像URLの保存
         ]);
 
-        Storage::putFileAs(
-            'public/products', // ストレージのパス
-            $request->file('image_url'), // アップロードされたファイル
-            $product->id . '.' . $request->file('image_url')->getClientOriginalExtension() || null,
-            );
         // カテゴリの関連付け
         if ($request->filled('categoryIds')) {
             $product->categories()->attach($request->categoryIds);
@@ -108,7 +113,10 @@ class ProductController extends Controller
         // カテゴリ情報を含めて返す
         $product->load('categories');
 
-        return response()->json($product, 201);
+        $productArray = $product->toArray();
+        $productArray['image_url'] = json_decode($product->image_url, true);
+
+        return response()->json($productArray, 201);
     }
 
     // GET /products/{productId}
@@ -122,7 +130,11 @@ class ProductController extends Controller
         }
         
         $product = Product::with('categories')->findOrFail($productId);
-        
+
+        // レスポンス時にJSONをデコード
+        $productArray = $product->toArray();
+        $productArray['image_url'] = json_decode($product->image_url, true);
+    
         return response()->json($product);
     }
 
@@ -135,9 +147,8 @@ class ProductController extends Controller
             'description' => 'nullable|string',
             'categoryIds' => 'nullable|array', // カテゴリIDの配列
             'categoryIds.*' => 'integer|exists:categories,id', // 各カテゴリIDのバリデーション
-            'rating' => 'nullable|numeric|min:0|max:5',
-            'download_count' => 'nullable|integer|min:0',
-            'image_url' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048', // 画像のバリデーション
+            'image_url' => 'nullable|array|max:5', //とりあえず五枚まで
+            'image_url.*' => 'file|mimes:jpg,jpeg,png,gif|max:2048', // 画像のバリデーション
         ]);
         
         $productId = intval($productId);
@@ -169,6 +180,9 @@ class ProductController extends Controller
 
         // カテゴリ情報を含めて返す
         $product->load('categories');
+
+        $productArray = $product->toArray();
+        $productArray['image_url'] = json_decode($product->image_url, true);
 
         return response()->json($product);
     }
