@@ -78,7 +78,6 @@ class ProductController extends Controller
     // POST /products
     public function store(Request $request)
     {
-        dump($request->all());
         $request->validate([
             'name' => 'required|string|max:255',
             'description' => 'nullable|string',
