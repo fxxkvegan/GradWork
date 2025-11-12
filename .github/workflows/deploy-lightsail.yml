@@ -62,17 +62,15 @@ jobs:
             php artisan config:cache
             php artisan route:cache
 
-            echo "===== Setting permissions ====="
-            sudo chown -R bitnami:daemon storage bootstrap/cache
-            sudo chmod -R 775 storage bootstrap/cache
-
             echo "===== Ensuring storage subdirectories ====="
             mkdir -p storage/framework/sessions
             mkdir -p storage/framework/views
             mkdir -p storage/framework/cache
             mkdir -p storage/logs
-            sudo chown -R bitnami:daemon storage
-            sudo chmod -R 775 storage
+
+            echo "===== Setting permissions ====="
+            sudo chown -R daemon:daemon storage bootstrap/cache
+            sudo chmod -R 777 storage bootstrap/cache
 
             echo "===== Disabling maintenance mode ====="
             php artisan up
