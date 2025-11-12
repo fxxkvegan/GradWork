@@ -36,13 +36,13 @@ class HealthCheckController extends Controller
         ]);
 
         return response()->json([
-            'ok'         => $status === 'ok',
-            'status'     => $status,
-            'message'    => $message,
-            'timestamp'  => $timestamp->toIso8601String(),
-            'laravel'    => app()->version(),
-            'php'        => PHP_VERSION,
+            'ok'              => $status === 'ok',
+            'status'          => $status,
+            'message'         => $message,
+            'timestamp'       => $timestamp->toIso8601String(),
+            'laravel'         => app()->version(),
+            'php'             => PHP_VERSION,
+            'last_deploy_at'  => env('LAST_DEPLOY_TIME', 'Unknown'),
         ]);
     }
 }
-
