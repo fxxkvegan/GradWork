@@ -12,7 +12,7 @@ class UserController extends Controller
     public function allusers()
     {
         try {
-            $users = User::select('id', 'name', 'email', 'avatar_url', 'locale', 'theme', 'created_at')->get();
+            $users = User::get();
             
             return response()->json([
                 'message' => 'All users retrieved successfully',
