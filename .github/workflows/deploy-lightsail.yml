@@ -55,14 +55,15 @@ jobs:
             echo "===== Running migrations ====="
             php artisan migrate --force
 
+            echo "===== Running seeders ====="
+            php artisan db:seed --force
+
             echo "===== Clearing cache ====="
-            php artisan view:clear
             php artisan route:clear
 
             echo "===== Optimizing application ====="
             php artisan config:cache
             php artisan route:cache
-            php artisan view:cache
 
             echo "===== Setting permissions ====="
             sudo chown -R bitnami:daemon storage bootstrap/cache
