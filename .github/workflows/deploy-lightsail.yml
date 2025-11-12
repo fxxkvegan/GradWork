@@ -41,6 +41,9 @@ jobs:
             echo "===== Starting deployment ====="
             cd /home/bitnami/htdocs/GradWork
 
+            echo "===== Cleaning up .env file ====="
+            sed -i '/^LAST_DEPLOY_TIME=/d' .env
+
             echo "===== Enabling maintenance mode ====="
             php artisan down --retry=60 || true
 
