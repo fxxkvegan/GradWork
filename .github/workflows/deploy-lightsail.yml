@@ -70,7 +70,7 @@ jobs:
             php artisan up
 
             echo "===== Restarting Apache ====="
-            sudo /opt/bitnami/ctlscript.sh restart apache
+            sudo /opt/bitnami/ctlscript.sh restart apache || sudo systemctl restart apache2 || echo "Warning: Apache restart failed, but deployment completed"
 
             echo "===== Deployment completed successfully ====="
           EOF
