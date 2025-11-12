@@ -1,0 +1,91 @@
+name: Deploy to Lightsail
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup SSH key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.LIGHTSAIL_SSH_KEY }}" > ~/.ssh/lightsail_key
+          chmod 600 ~/.ssh/lightsail_key
+          ssh-keyscan -H ${{ secrets.LIGHTSAIL_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Lightsail
+        env:
+          SSH_USER: ${{ secrets.LIGHTSAIL_USER }}
+          SSH_HOST: ${{ secrets.LIGHTSAIL_HOST }}
+          DB_HOST: ${{ secrets.DB_HOST }}
+          DB_PORT: ${{ secrets.DB_PORT }}
+          DB_DATABASE: ${{ secrets.DB_DATABASE }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
+          APP_ENV: ${{ secrets.APP_ENV }}
+          APP_DEBUG: ${{ secrets.APP_DEBUG }}
+          APP_URL: ${{ secrets.APP_URL }}
+        run: |
+          ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no ${SSH_USER}@${SSH_HOST} << 'EOF'
+            set -e
+
+            echo "===== Starting deployment ====="
+            cd /home/bitnami/htdocs/GradWorks
+
+            echo "===== Enabling maintenance mode ====="
+            php artisan down --retry=60 || true
+
+            echo "===== Pulling latest code ====="
+            git fetch origin main
+            git reset --hard origin/main
+
+            echo "===== Installing dependencies ====="
+            composer install --optimize-autoloader --no-dev --no-interaction
+
+            echo "===== Updating .env file ====="
+            if [ ! -f .env ]; then
+              cp .env.example .env
+              php artisan key:generate --force
+            fi
+
+            php artisan config:clear
+
+            echo "===== Running migrations ====="
+            php artisan migrate --force
+
+            echo "===== Clearing and caching views ====="
+            php artisan view:clear
+            php artisan view:cache
+
+            echo "===== Creating storage link ====="
+            php artisan storage:link || true
+
+            echo "===== Setting permissions ====="
+            sudo chown -R bitnami:daemon storage bootstrap/cache
+            sudo chmod -R 775 storage bootstrap/cache
+
+            echo "===== Disabling maintenance mode ====="
+            php artisan up
+
+            echo "===== Restarting Apache ====="
+            sudo /opt/bitnami/ctlscript.sh restart apache
+
+            echo "===== Deployment completed successfully ====="
+          EOF
+
+      - name: Deployment notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Deployment to Lightsail completed successfully"
+          else
+            echo "❌ Deployment to Lightsail failed"
+          fi
