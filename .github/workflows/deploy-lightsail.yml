@@ -38,7 +38,7 @@ jobs:
             set -e
 
             echo "===== Starting deployment ====="
-            cd /home/bitnami/htdocs/GradWork-back
+            cd /home/bitnami/htdocs/GradWork
 
             echo "===== Enabling maintenance mode ====="
             php artisan down --retry=60 || true
