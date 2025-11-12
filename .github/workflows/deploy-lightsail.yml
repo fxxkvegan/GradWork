@@ -55,9 +55,6 @@ jobs:
             echo "===== Running migrations ====="
             php artisan migrate --force
 
-            echo "===== Running seeders ====="
-            php artisan db:seed --force
-
             echo "===== Clearing cache ====="
             php artisan route:clear
 
