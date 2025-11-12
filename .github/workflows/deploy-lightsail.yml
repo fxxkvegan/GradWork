@@ -56,8 +56,8 @@ jobs:
             php artisan migrate --force
 
             echo "===== Clearing cache ====="
-            php artisan cache:clear
             php artisan view:clear
+            php artisan route:clear
 
             echo "===== Optimizing application ====="
             php artisan config:cache
