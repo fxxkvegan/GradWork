@@ -38,35 +38,31 @@ jobs:
             set -e
 
             echo "===== Starting deployment ====="
-            cd /home/bitnami/htdocs/GradWorks
+            cd /home/bitnami/htdocs/GradWork-back
 
             echo "===== Enabling maintenance mode ====="
             php artisan down --retry=60 || true
 
             echo "===== Pulling latest code ====="
-            git fetch origin main
-            git reset --hard origin/main
+            git pull origin main
 
             echo "===== Installing dependencies ====="
             composer install --optimize-autoloader --no-dev --no-interaction
 
-            echo "===== Updating .env file ====="
-            if [ ! -f .env ]; then
-              cp .env.example .env
-              php artisan key:generate --force
-            fi
-
+            echo "===== Clearing config cache ====="
             php artisan config:clear
 
             echo "===== Running migrations ====="
             php artisan migrate --force
 
-            echo "===== Clearing and caching views ====="
+            echo "===== Clearing cache ====="
+            php artisan cache:clear
             php artisan view:clear
-            php artisan view:cache
 
-            echo "===== Creating storage link ====="
-            php artisan storage:link || true
+            echo "===== Optimizing application ====="
+            php artisan config:cache
+            php artisan route:cache
+            php artisan view:cache
 
             echo "===== Setting permissions ====="
             sudo chown -R bitnami:daemon storage bootstrap/cache
