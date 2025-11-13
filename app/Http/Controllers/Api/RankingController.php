@@ -23,7 +23,7 @@ class RankingController extends Controller
         }
         return response()->json([
             'message' => 'Ranking result',
-            'items' => $rankings // ランキング結果データ
+            'data' => $rankings // ランキング結果データ
         ]);
     }
 }
