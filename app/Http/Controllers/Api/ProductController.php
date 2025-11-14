@@ -134,7 +134,7 @@ class ProductController extends Controller
         $productArray = $product->toArray();
         $productArray['image_url'] = json_decode($product->image_url, true);
     
-        return response()->json($product);
+        return response()->json($productArray);
     }
 
     // PUT /products/{productId}
@@ -183,7 +183,7 @@ class ProductController extends Controller
         $productArray = $product->toArray();
         $productArray['image_url'] = json_decode($product->image_url, true);
 
-        return response()->json($product);
+        return response()->json($productArray);
     }
 
     // DELETE /products/{productId}
