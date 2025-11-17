@@ -11,8 +11,7 @@ class CategoryController extends Controller
     // GET /categories - シンプルなカテゴリ一覧
     public function index()
     {
-        $categories = Category::all();
-        
+        $categories = Category::all(['name', 'description']);
         return response()->json([
             'items' => $categories,
             'total' => $categories->count()
