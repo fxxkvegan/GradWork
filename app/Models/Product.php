@@ -4,6 +4,13 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+use function array_filter;
+use function array_values;
+use function is_array;
+use function is_string;
+use function json_decode;
+use function json_last_error;
+
 class Product extends Model
 {
     protected $fillable = [
@@ -12,6 +19,7 @@ class Product extends Model
         'rating',
         'download_count',
         'image_url',
+        'user_id',
     ];
 
     protected $casts = [
@@ -26,6 +34,11 @@ class Product extends Model
 
     // categoriesリレーションを隠す（categoryIdsアクセサで表示）
     protected $hidden = ['categories'];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
 
     // リレーション: 1つの製品に複数のレビュー
     public function reviews()
@@ -62,5 +75,34 @@ class Product extends Model
     public function getAverageRatingAttribute()
     {
         return $this->reviews()->avg('rating') ?? 0;
+    }
+
+    public static function decodeImageUrls($value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (is_array($value)) {
+            return array_values(array_filter($value, static function ($url) {
+                return is_string($url) && $url !== '';
+            }));
+        }
+
+        $decoded = json_decode($value, true);
+
+        if (json_last_error() === JSON_ERROR_NONE) {
+            if (is_array($decoded)) {
+                return array_values(array_filter($decoded, static function ($url) {
+                    return is_string($url) && $url !== '';
+                }));
+            }
+
+            if (is_string($decoded) && $decoded !== '') {
+                return [$decoded];
+            }
+        }
+
+        return is_string($value) && $value !== '' ? [$value] : [];
     }
 }

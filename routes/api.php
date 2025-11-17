@@ -51,6 +51,7 @@ Route::put('/users/me', [UserController::class, 'updateProfile'])->middleware('a
 Route::get('/users/me/settings', [UserController::class, 'getSettings'])->middleware('auth:api');
 Route::put('/users/me/settings', [UserController::class, 'updateSettings'])->middleware('auth:api');
 Route::get('/users/me/history', [UserController::class, 'history'])->middleware('auth:api');
+Route::get('/users/me/products', [ProductController::class, 'myProducts'])->middleware('auth:api');
 
 // Home route (ランディングページ用)
 Route::get('/home', [HomeController::class, 'index']);
