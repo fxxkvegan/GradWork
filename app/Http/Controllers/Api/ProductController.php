@@ -8,6 +8,7 @@ use App\Models\ProductStatus;
 use App\Models\Version;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+
 class ProductController extends Controller
 {
     // GET /products
@@ -63,8 +64,14 @@ class ProductController extends Controller
             ], 200);
         }
 
+        $items = array_map(function ($product) {
+            $productArray = $product->toArray();
+            $productArray['image_url'] = Product::decodeImageUrls($product->getRawOriginal('image_url'));
+            return $productArray;
+        }, $products->items());
+
         return response()->json([
-            'items' => $products->items(), // 製品データの配列
+            'items' => $items, // 製品データの配列
             'total' => $products->total(), // 総件数
             'currentPage' => $products->currentPage(), // 現在のページ番号
             'lastPage' => $products->lastPage(), // 最終ページ番号
@@ -102,6 +109,7 @@ class ProductController extends Controller
             'rating' => 0,          //初期値
             'download_count' => 0,  //初期値
             'image_url' => $imageUrls ? json_encode($imageUrls) : null, // 画像URLの保存
+            'user_id' => $request->user()->id,
         ]);
 
         // カテゴリの関連付け
@@ -113,7 +121,7 @@ class ProductController extends Controller
         $product->load('categories');
 
         $productArray = $product->toArray();
-        $productArray['image_url'] = json_decode($product->image_url, true);
+        $productArray['image_url'] = Product::decodeImageUrls($product->getRawOriginal('image_url'));
 
         return response()->json($productArray, 201);
     }
@@ -132,7 +140,7 @@ class ProductController extends Controller
 
         // レスポンス時にJSONをデコード
         $productArray = $product->toArray();
-        $productArray['image_url'] = json_decode($product->image_url, true);
+        $productArray['image_url'] = Product::decodeImageUrls($product->getRawOriginal('image_url'));
     
         return response()->json($productArray);
     }
@@ -181,7 +189,7 @@ class ProductController extends Controller
         $product->load('categories');
 
         $productArray = $product->toArray();
-        $productArray['image_url'] = json_decode($product->image_url, true);
+        $productArray['image_url'] = $this->decodeImageField($product->image_url);
 
         return response()->json($productArray);
     }
@@ -236,6 +244,26 @@ class ProductController extends Controller
         return response()->json([
             'message' => 'Product status',
             'data' => $response // 状態情報
+        ]);
+    }
+
+    public function myProducts(Request $request)
+    {
+        $user = $request->user();
+
+        $products = Product::with('categories')
+            ->where('user_id', $user->id)
+            ->orderByDesc('created_at')
+            ->get()
+            ->map(function (Product $product) {
+                $productArray = $product->toArray();
+                $productArray['image_url'] = Product::decodeImageUrls($product->getRawOriginal('image_url'));
+                return $productArray;
+            });
+
+        return response()->json([
+            'items' => $products,
+            'count' => $products->count(),
         ]);
     }
 }
