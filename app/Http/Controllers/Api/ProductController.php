@@ -189,7 +189,7 @@ class ProductController extends Controller
         $product->load('categories');
 
         $productArray = $product->toArray();
-        $productArray['image_url'] = $this->decodeImageField($product->image_url);
+        $productArray['image_url'] = Product::decodeImageUrls($product->getRawOriginal('image_url'));
 
         return response()->json($productArray);
     }
