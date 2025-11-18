@@ -115,6 +115,8 @@ class ProductController extends Controller
             'categoryIds.*' => 'integer|exists:categories,id',
             'image_url' => 'nullable|array|max:5',
             'image_url.*' => 'file|mimes:jpg,jpeg,png,gif|max:2048',
+            'remove_image_urls' => 'nullable|array',
+            'remove_image_urls.*' => 'string',
         ]);
 
         $imageUrls = [];
@@ -191,26 +193,43 @@ class ProductController extends Controller
 
         $product = Product::findOrFail($productId);
 
-        // 新しい画像がアップロードされた場合の処理
-        $imageUrls = [];
-        if ($request->hasFile('image_url')) {
-            // 古い画像を削除
-            $oldImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
-            foreach ($oldImages as $oldUrl) {
-                $oldPath = str_replace('/storage/', '', parse_url($oldUrl, PHP_URL_PATH));
-                Storage::disk('public')->delete($oldPath);
+        $existingImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
+        $removeTargets = $request->input('remove_image_urls', []);
+        $removeSet = array_flip(is_array($removeTargets) ? $removeTargets : []);
+
+        $remainingImages = array_values(array_filter($existingImages, function ($url) use ($removeSet) {
+            return !array_key_exists($url, $removeSet);
+        }));
+
+        // 明示的に削除された画像ファイルをストレージから削除
+        foreach ($existingImages as $url) {
+            if (!array_key_exists($url, $removeSet)) {
+                continue;
             }
 
-            // 新しい画像を保存
+            $path = parse_url($url, PHP_URL_PATH);
+            if (is_string($path)) {
+                $storagePath = str_replace('/storage/', '', $path);
+                Storage::disk('public')->delete($storagePath);
+            }
+        }
+
+        $newImages = [];
+        if ($request->hasFile('image_url')) {
             foreach ($request->file('image_url') as $file) {
                 $path = $file->store('products', 'public');
                 $url = Storage::url($path);
-                $imageUrls[] = $url;
+                $newImages[] = $url;
             }
-        } else {
-            // 画像の変更がない場合は既存の画像URLを保持
-            $imageUrls = Product::decodeImageUrls($product->getRawOriginal('image_url'));
         }
+
+        if (count($remainingImages) + count($newImages) > 5) {
+            return response()->json([
+                'message' => '画像は最大5枚までアップロードできます',
+            ], 422);
+        }
+
+        $imageUrls = array_merge($remainingImages, $newImages);
 
         $product->update([
             'name' => $request->name,
