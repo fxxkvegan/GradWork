@@ -63,6 +63,49 @@ class CategoryController extends Controller
     }
 
     /**
+     * PUT /categories/{id} - カテゴリ更新
+     */
+    public function update(Request $request, $id)
+    {
+        $category = Category::findOrFail($id);
+
+        $request->validate([
+            'name' => 'sometimes|required|string|max:255|unique:categories,name,' . $id,
+            'image' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048',
+        ]);
+
+        // 画像ファイルの処理
+        if ($request->hasFile('image')) {
+            // 古い画像を削除
+            if ($category->image) {
+                $oldPath = str_replace('/storage/', '', parse_url($category->image, PHP_URL_PATH));
+                Storage::disk('public')->delete($oldPath);
+            }
+
+            // 新しい画像を保存
+            $path = $request->file('image')->store('categories', 'public');
+            $category->image = Storage::url($path);
+        }
+
+        // 名前の更新
+        if ($request->has('name')) {
+            $category->name = $request->name;
+        }
+
+        $category->save();
+
+        // 商品数を再取得
+        $category->loadCount('products');
+
+        return response()->json([
+            'id' => $category->id,
+            'name' => $category->name,
+            'image' => $category->image ? url($category->image) : null,
+            'products_count' => $category->products_count,
+        ], 200);
+    }
+
+    /**
      * DELETE /categories/{id} - カテゴリ削除
      */
     public function destroy($id)
