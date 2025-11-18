@@ -8,7 +8,7 @@ class Category extends Model
 {
     protected $fillable = [
         'name',
-        'description',
+        'image', 
     ];
 
     protected $casts = [
@@ -16,7 +16,9 @@ class Category extends Model
         'updated_at' => 'datetime',
     ];
 
-    // リレーション: カテゴリと複数の製品（多対多）
+    /**
+     * リレーション: カテゴリと複数の製品（多対多）
+     */
     public function products()
     {
         return $this->belongsToMany(Product::class, 'product_categories');
