@@ -139,16 +139,15 @@ class ProductController extends Controller
         
         $product = Product::with('categories')->findOrFail($productId);
 
-        // レスポンス時にJSONをデコード
         $productArray = $product->toArray();
-        $productArray['image_url'] = Product::decodeImageUrls($product->getRawOriginal('image_url'));
-    
+        $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));      
+        $productArray['image_url'] = array_map(fn ($image) => public_path($image), $decodedImages);
         return response()->json($productArray);
-    }
+        }
 
-    // PUT /products/{productId}
-    public function update(Request $request, $productId)
-    {
+        // PUT /products/{productId}
+        public function update(Request $request, $productId)
+        {
         // TODO: 製品情報の更新処理
         $request->validate([
             'name' => 'required|string|max:255',
