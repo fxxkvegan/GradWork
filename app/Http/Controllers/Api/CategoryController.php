@@ -5,32 +5,78 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class CategoryController extends Controller
 {
-    // GET /categories - シンプルなカテゴリ一覧
+    /**
+     * GET /categories - カテゴリ一覧
+     * 各カテゴリの商品数と画像URLを含む
+     */
     public function index()
     {
-        $categories = Category::all(['id','name', 'description']);
+        $categories = Category::withCount('products')
+            ->get(['id', 'name', 'image'])
+            ->map(function ($category) {
+                return [
+                    'id' => $category->id,
+                    'name' => $category->name,
+                    'image' => $category->image ? url($category->image) : null, 
+                    'products_count' => $category->products_count, 
+                ];
+            });
+        
         return response()->json([
             'items' => $categories,
             'total' => $categories->count()
         ], 200);
     }
 
-    // POST /categories - カテゴリ作成
+    /**
+     * POST /categories - カテゴリ作成
+     */
     public function store(Request $request)
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:categories',
-            'description' => 'nullable|string',
+            'image' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048', 
         ]);
+
+        // 画像ファイルの処理
+        $imagePath = null;
+        if ($request->hasFile('image')) {
+            $path = $request->file('image')->store('categories', 'public');
+            $imagePath = Storage::url($path);
+        }
 
         $category = Category::create([
             'name' => $request->name,
-            'description' => $request->description,
+            'image' => $imagePath,
         ]);
 
-        return response()->json($category, 201);
+        return response()->json([
+            'id' => $category->id,
+            'name' => $category->name,
+            'image' => $category->image ? url($category->image) : null,
+            'products_count' => 0,  // 新規作成時は0
+        ], 201);
+    }
+
+    /**
+     * DELETE /categories/{id} - カテゴリ削除
+     */
+    public function destroy($id)
+    {
+        $category = Category::findOrFail($id);
+
+        // 画像ファイルを削除
+        if ($category->image) {
+            $path = str_replace('/storage/', '', parse_url($category->image, PHP_URL_PATH));
+            Storage::disk('public')->delete($path);
+        }
+
+        $category->delete();
+
+        return response()->json(null, 204);
     }
 }
