@@ -23,17 +23,17 @@ class ProductController extends Controller
             'limit' => 'nullable|integer|min:1|max:100', // 1ページあたりの件数のバリデーション
             'sort' => 'nullable|string|in:name,rating,download_count,created_at', // ソート条件のバリデーション
         ]);
-        
+
         $productsQuery = Product::with('categories');
-        
-        if($request->filled('q')) {
+
+        if ($request->filled('q')) {
             // 製品名で検索
             $productsQuery->where('name', 'like', '%' . $request->q . '%');
         }
 
         // カテゴリフィルター
-        if($request->filled('categoryIds')) {
-            $productsQuery->whereHas('categories', function($query) use ($request) {
+        if ($request->filled('categoryIds')) {
+            $productsQuery->whereHas('categories', function ($query) use ($request) {
                 $query->whereIn('categories.id', $request->categoryIds);
             });
         }
@@ -57,7 +57,7 @@ class ProductController extends Controller
         $limit = $request->input('limit', 10); // デフォルトは10でとりあえず
         $products = $productsQuery->paginate($limit);
         // 製品が見つからなかった場合の処理
-        if($products->isEmpty()) {
+        if ($products->isEmpty()) {
             return response()->json([
                 'message' => 'No products found',
                 'items' => null
@@ -98,12 +98,12 @@ class ProductController extends Controller
 
         if ($request->hasFile('image_url')) {
             foreach ($request->file('image_url') as $file) {
-                $path = $file->store('public','products');
+                $path = $file->store('products', 'public');
                 $url = Storage::url($path);
                 $imageUrls[] = $url;
             }
         }
-        
+
         $product = Product::create([
             'name' => $request->name,
             'description' => $request->description,
@@ -131,12 +131,12 @@ class ProductController extends Controller
     public function show($productId)
     {
         $productId = intval($productId);
-        if ($productId <= 0) {    
+        if ($productId <= 0) {
             return response()->json([
                 'message' => 'Invalid product ID'
             ], 400);
         }
-        
+
         $product = Product::with('categories')->findOrFail($productId);
 
         $productArray = $product->toArray();
@@ -157,14 +157,14 @@ class ProductController extends Controller
             'image_url' => 'nullable|array|max:5', //とりあえず五枚まで
             'image_url.*' => 'file|mimes:jpg,jpeg,png,gif|max:2048', // 画像のバリデーション
         ]);
-        
+
         $productId = intval($productId);
-        if ($productId <= 0) {    
+        if ($productId <= 0) {
             return response()->json([
                 'message' => 'Invalid product ID'
             ], 400);
         }
-        
+
         $product = Product::findOrFail($productId);
         $product->update([
             'name' => $request->name,
@@ -199,7 +199,7 @@ class ProductController extends Controller
     {
         //製品の削除
         $productId = intval($productId);
-        if ($productId <= 0) {    
+        if ($productId <= 0) {
             return response()->json([
                 'message' => 'Invalid product ID',
                 'data' => $productId
@@ -207,7 +207,7 @@ class ProductController extends Controller
         }
         $product = Product::findOrFail($productId);
         $product->delete();
-    
+
         return response()->json(null, 204);
     }
 
@@ -222,7 +222,7 @@ class ProductController extends Controller
                 'data' => $productId
             ], 400);
         }
-        $response = Version::where('product_id',$productId)->get();
+        $response = Version::where('product_id', $productId)->get();
         return response()->json([
             'message' => 'List of versions',
             'data' => $response // バージョン情報の配列
@@ -240,7 +240,7 @@ class ProductController extends Controller
                 'data' => $productId
             ], 400);
         }
-        $response = ProductStatus::where('product_id',$productId)->firstOrFail();
+        $response = ProductStatus::where('product_id', $productId)->firstOrFail();
         return response()->json([
             'message' => 'Product status',
             'data' => $response // 状態情報
