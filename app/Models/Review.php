@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Model;
 
 class Review extends Model
@@ -39,5 +40,18 @@ class Review extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Ensure rating is persisted as an integer (value * 2) while exposing decimal values to callers.
+     */
+    protected function rating(): Attribute
+    {
+        return Attribute::make(
+            get: static fn (?int $value) => $value === null ? null : round($value / 2, 1),
+            set: static fn (?float $value) => $value === null
+                ? null
+                : (int) round($value * 2),
+        );
     }
 }
