@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
+use APP\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -85,6 +86,9 @@ class CategoryController extends Controller
             // 新しい画像を保存
             $path = $request->file('image')->store('categories', 'public');
             $category->image = Storage::url($path);
+        } else{
+            //デバッグ用
+            $category->image = "おちんちんびろーん";
         }
 
         // 名前の更新
