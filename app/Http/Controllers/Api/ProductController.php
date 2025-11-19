@@ -182,6 +182,8 @@ class ProductController extends Controller
             'categoryIds.*' => 'integer|exists:categories,id',
             'image_url' => 'nullable|array|max:5',
             'image_url.*' => 'file|mimes:jpg,jpeg,png,gif|max:2048',
+            'remove_image_urls' => 'nullable|array',
+            'remove_image_urls.*' => 'string',
         ]);
 
         $productId = intval($productId);
@@ -195,7 +197,19 @@ class ProductController extends Controller
 
         $existingImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
         $removeTargets = $request->input('remove_image_urls', []);
-        $removeSet = array_flip(is_array($removeTargets) ? $removeTargets : []);
+        $normalizedRemovals = array_values(array_filter(array_map(function ($value) {
+            if (!is_string($value) || $value === '') {
+                return null;
+            }
+
+            $path = parse_url($value, PHP_URL_PATH);
+            if (is_string($path) && $path !== '') {
+                return $path;
+            }
+
+            return $value;
+        }, is_array($removeTargets) ? $removeTargets : [])));
+        $removeSet = array_flip($normalizedRemovals);
 
         $remainingImages = array_values(array_filter($existingImages, function ($url) use ($removeSet) {
             return !array_key_exists($url, $removeSet);
@@ -207,7 +221,7 @@ class ProductController extends Controller
                 continue;
             }
 
-            $path = parse_url($url, PHP_URL_PATH);
+            $path = parse_url($url, PHP_URL_PATH) ?: $url;
             if (is_string($path)) {
                 $storagePath = str_replace('/storage/', '', $path);
                 Storage::disk('public')->delete($storagePath);
