@@ -82,15 +82,10 @@ class CategoryController extends Controller
                 $oldPath = str_replace('/storage/', '', parse_url($category->image, PHP_URL_PATH));
                 Storage::disk('public')->delete($oldPath);
             }
-
             // 新しい画像を保存
             $path = $request->file('image')->store('categories', 'public');
             $category->image = Storage::url($path);
-        } else{
-            //デバッグ用
-            $category->image = "おちんちんびろーん";
         }
-
         // 名前の更新
         if ($request->has('name')) {
             $category->name = $request->name;
