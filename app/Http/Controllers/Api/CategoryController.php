@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Storage;
 
 class CategoryController extends Controller
 {
+
     /**
      * GET /categories - カテゴリ一覧
      * 各カテゴリの商品数と画像URLを含む
@@ -48,7 +49,7 @@ class CategoryController extends Controller
             $path = $request->file('image')->store('categories', 'public');
             $imagePath = Storage::url($path);
         }
-        $imagePath = Category::decodeImageUrls($imagePath);
+
         $category = Category::create([
             'name' => $request->name,
             'image' => $imagePath,
@@ -84,7 +85,6 @@ class CategoryController extends Controller
             $path = $request->file('image')->store('categories', 'public');
             $category->image = Storage::url($path);
         }
-        $category->image = Category::decodeImageUrls($category->image);
         // 名前の更新
         if ($request->has('name')) {
             $category->name = $request->name;
