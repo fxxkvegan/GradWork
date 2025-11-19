@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Category;
-use APP\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
@@ -49,7 +48,7 @@ class CategoryController extends Controller
             $path = $request->file('image')->store('categories', 'public');
             $imagePath = Storage::url($path);
         }
-
+        $imagePath = Category::decodeImageUrls($imagePath);
         $category = Category::create([
             'name' => $request->name,
             'image' => $imagePath,
@@ -74,7 +73,6 @@ class CategoryController extends Controller
             'name' => 'sometimes|required|string|max:255|unique:categories,name,' . $id,
             'image' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048',
         ]);
-
         // 画像ファイルの処理
         if ($request->hasFile('image')) {
             // 古い画像を削除
@@ -86,6 +84,7 @@ class CategoryController extends Controller
             $path = $request->file('image')->store('categories', 'public');
             $category->image = Storage::url($path);
         }
+        $category->image = Category::decodeImageUrls($category->image);
         // 名前の更新
         if ($request->has('name')) {
             $category->name = $request->name;
