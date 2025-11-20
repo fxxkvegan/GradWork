@@ -47,7 +47,7 @@ class CategoryController extends Controller
             'name' => $request->name,
             'image' => $request->image ?? null,
         ]);
-
+        
         return response()->json([
             'id' => $category->id,
             'name' => $category->name,
@@ -74,7 +74,7 @@ class CategoryController extends Controller
         if ($request->has('name')) {
             $category->name = $request->name;
         }
-
+        json_decode($category->image);
         $category->save();
 
         // 商品数を再取得
