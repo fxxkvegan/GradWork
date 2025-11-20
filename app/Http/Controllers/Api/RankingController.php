@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 
@@ -15,7 +16,7 @@ class RankingController extends Controller
         $limit = (int) $request->input('limit', 10);
         $limit = max(1, min(20, $limit));
 
-        $rankings = Product::with('categories:id,name')
+        $rankings = Product::with(['categories:id,name', 'user'])
             ->orderByDesc('rating')
             ->orderByDesc('download_count')
             ->take($limit)
@@ -37,6 +38,7 @@ class RankingController extends Controller
                     'image_urls' => Product::decodeImageUrls($product->getRawOriginal('image_url')),
                     'category_ids' => $product->categoryIds,
                     'categories' => $categories,
+                    'owner' => $this->transformUser($product->user),
                 ];
             })->values();
 
@@ -46,4 +48,35 @@ class RankingController extends Controller
             'count' => $rankings->count(),
         ], 200);
     }
+
+        private function transformUser(?User $user): ?array
+        {
+            if ($user === null) {
+                return null;
+            }
+
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'displayName' => $user->display_name,
+                'avatarUrl' => $this->normalizePublicUrl($user->avatar_url),
+                'headerUrl' => $this->normalizePublicUrl($user->header_url),
+                'bio' => $user->bio,
+                'location' => $user->location,
+                'website' => $user->website,
+            ];
+        }
+
+        private function normalizePublicUrl(?string $path): ?string
+        {
+            if ($path === null || $path === '') {
+                return null;
+            }
+
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                return $path;
+            }
+
+            return url($path);
+        }
 }

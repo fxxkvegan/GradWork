@@ -15,11 +15,17 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
+        'display_name',
         'email',
         'password',
         'avatar_url',
+        'header_url',
         'locale',
         'theme',
+        'bio',
+        'location',
+        'website',
+        'birthday',
     ];
 
     protected $hidden = [
@@ -34,5 +40,6 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'birthday' => 'date',
     ];
 }

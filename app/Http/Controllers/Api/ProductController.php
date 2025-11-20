@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductStatus;
+use App\Models\User;
 use App\Models\Version;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -42,7 +43,7 @@ class ProductController extends Controller
             'sort' => 'nullable|string|in:name,rating,download_count,created_at',
         ]);
 
-        $productsQuery = Product::with('categories');
+        $productsQuery = Product::with(['categories', 'user']);
 
         if ($request->filled('q')) {
             $productsQuery->where('name', 'like', '%' . $request->q . '%');
@@ -85,11 +86,13 @@ class ProductController extends Controller
             ], 200);
         }
 
-        $items = array_map(function ($product) {
+        $items = array_map(function (Product $product) {
             $productArray = $product->toArray();
             // ✅ JSONデコード → 完全なURLに変換
             $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
             $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
+            $productArray['owner'] = $this->transformUser($product->user);
+            unset($productArray['user']);
             return $productArray;
         }, $products->items());
 
@@ -142,12 +145,14 @@ class ProductController extends Controller
             $product->categories()->attach($request->categoryIds);
         }
 
-        $product->load('categories');
+        $product->load(['categories', 'user']);
 
         $productArray = $product->toArray();
         // ✅ JSONデコード → 完全なURLに変換
         $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
         $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
+        $productArray['owner'] = $this->transformUser($product->user);
+        unset($productArray['user']);
 
         return response()->json($productArray, 201);
     }
@@ -162,12 +167,14 @@ class ProductController extends Controller
             ], 400);
         }
 
-        $product = Product::with('categories')->findOrFail($productId);
+        $product = Product::with(['categories', 'user'])->findOrFail($productId);
 
         $productArray = $product->toArray();
         // ✅ JSONデコード → 完全なURLに変換
         $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
         $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
+        $productArray['owner'] = $this->transformUser($product->user);
+        unset($productArray['user']);
         
         return response()->json($productArray);
     }
@@ -255,12 +262,14 @@ class ProductController extends Controller
             $product->categories()->sync($request->categoryIds);
         }
 
-        $product->load('categories');
+        $product->load(['categories', 'user']);
 
         $productArray = $product->toArray();
         // ✅ JSONデコード → 完全なURLに変換
         $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
         $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
+        $productArray['owner'] = $this->transformUser($product->user);
+        unset($productArray['user']);
 
         return response()->json($productArray);
     }
@@ -331,7 +340,7 @@ class ProductController extends Controller
     {
         $user = $request->user();
 
-        $products = Product::with('categories')
+        $products = Product::with(['categories', 'user'])
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
             ->get()
@@ -340,6 +349,8 @@ class ProductController extends Controller
                 // ✅ JSONデコード → 完全なURLに変換
                 $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
                 $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
+                $productArray['owner'] = $this->transformUser($product->user);
+                unset($productArray['user']);
                 return $productArray;
             });
 
@@ -348,4 +359,35 @@ class ProductController extends Controller
             'count' => $products->count(),
         ]);
     }
+
+        private function transformUser(?User $user): ?array
+        {
+            if ($user === null) {
+                return null;
+            }
+
+            return [
+                'id' => $user->id,
+                'name' => $user->name,
+                'displayName' => $user->display_name,
+                'avatarUrl' => $this->normalizePublicUrl($user->avatar_url),
+                'headerUrl' => $this->normalizePublicUrl($user->header_url),
+                'bio' => $user->bio,
+                'location' => $user->location,
+                'website' => $user->website,
+            ];
+        }
+
+        private function normalizePublicUrl(?string $path): ?string
+        {
+            if ($path === null || $path === '') {
+                return null;
+            }
+
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                return $path;
+            }
+
+            return url($path);
+        }
 }
