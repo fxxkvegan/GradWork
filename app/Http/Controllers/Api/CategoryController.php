@@ -22,7 +22,7 @@ class CategoryController extends Controller
                 return [
                     'id' => $category->id,
                     'name' => $category->name,
-                    'image' => $category->image ? url($category->image) : null, 
+                    'image' => $category->image,
                     'products_count' => $category->products_count, 
                 ];
             });
@@ -40,25 +40,18 @@ class CategoryController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255|unique:categories',
-            'image' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048', 
+            'image' => 'nullable|string', 
         ]);
-
-        // 画像ファイルの処理
-        $imagePath = null;
-        if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('categories', 'public');
-            $imagePath = Storage::url($path);
-        }
 
         $category = Category::create([
             'name' => $request->name,
-            'image' => $imagePath,
+            'image' => $request->image ?? null,
         ]);
 
         return response()->json([
             'id' => $category->id,
             'name' => $category->name,
-            'image' => $category->image ? url($category->image) : null,
+            'image' => $category->image,
             'products_count' => 0,  // 新規作成時は0
         ], 201);
     }
@@ -72,18 +65,10 @@ class CategoryController extends Controller
 
         $request->validate([
             'name' => 'sometimes|required|string|max:255|unique:categories,name,' . $id,
-            'image' => 'nullable|file|mimes:jpg,jpeg,png,gif|max:2048',
+            'image' => 'nullable|string',
         ]);
-        // 画像ファイルの処理
-        if ($request->hasFile('image')) {
-            // 古い画像を削除
-            if ($category->image) {
-                $oldPath = str_replace('/storage/', '', parse_url($category->image, PHP_URL_PATH));
-                Storage::disk('public')->delete($oldPath);
-            }
-            // 新しい画像を保存
-            $path = $request->file('image')->store('categories', 'public');
-            $category->image = Storage::url($path);
+        if($request->has('image')) {
+            $category->image = $request->image;
         }
         // 名前の更新
         if ($request->has('name')) {
@@ -98,7 +83,7 @@ class CategoryController extends Controller
         return response()->json([
             'id' => $category->id,
             'name' => $category->name,
-            'image' => $category->image ? url($category->image) : null,
+            'image' => $category->image,
             'products_count' => $category->products_count,
         ], 200);
     }
@@ -109,13 +94,6 @@ class CategoryController extends Controller
     public function destroy($id)
     {
         $category = Category::findOrFail($id);
-
-        // 画像ファイルを削除
-        if ($category->image) {
-            $path = str_replace('/storage/', '', parse_url($category->image, PHP_URL_PATH));
-            Storage::disk('public')->delete($path);
-        }
-
         $category->delete();
 
         return response()->json(null, 204);
