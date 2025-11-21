@@ -102,25 +102,7 @@ class ReviewController extends Controller
             'review_count' => $reviews->count(),
         ];
 
-        $reviews = $reviews->map(function (Review $review) {
-            $authorName = null;
-            if ($review->relationLoaded('user') && $review->user !== null) {
-                $authorName = $review->user->display_name ?: $review->user->name;
-            }
-
-            return [
-                'id' => $review->id,
-                'product_id' => $review->product_id,
-                'author_id' => $review->author_id,
-                'author_name' => $authorName,
-                'title' => $review->title,
-                'body' => $review->body,
-                'rating' => $review->rating,
-                'helpful_count' => $review->helpful_count,
-                'created_at' => $review->created_at,
-                'updated_at' => $review->updated_at,
-            ];
-        });
+        $reviews = $reviews->map(fn (Review $review) => $this->transformReview($review));
 
         return response()->json([
             'message' => 'List of reviews',
@@ -178,20 +160,7 @@ class ReviewController extends Controller
         $average = $this->syncProductRating($productId);
         $count = Review::where('product_id', $productId)->count();
 
-        $authorName = $review->user?->display_name ?: $review->user?->name;
-
-        $responseData = [
-            'id' => $review->id,
-            'product_id' => $review->product_id,
-            'author_id' => $review->author_id,
-            'author_name' => $authorName,
-            'title' => $review->title,
-            'body' => $review->body,
-            'rating' => $review->rating,
-            'helpful_count' => $review->helpful_count,
-            'created_at' => $review->created_at,
-            'updated_at' => $review->updated_at,
-        ];
+        $responseData = $this->transformReview($review);
         return response()->json([
             'message' => 'Review created successfully',
             'data' => $responseData,
@@ -249,20 +218,7 @@ class ReviewController extends Controller
         }
 
         // レスポンスデータの整形
-        $authorName = $review->user?->display_name ?: $review->user?->name;
-
-        $responseData = [
-            'id' => $review->id,
-            'product_id' => $review->product_id,
-            'author_id' => $review->author_id,
-            'author_name' => $authorName,
-            'title' => $review->title,
-            'body' => $review->body,
-            'rating' => $review->rating,
-            'helpful_count' => $review->helpful_count,
-            'created_at' => $review->created_at,
-            'updated_at' => $review->updated_at,
-        ];
+        $responseData = $this->transformReview($review);
 
         return response()->json([
             'message' => 'Review updated successfully',
@@ -404,4 +360,46 @@ class ReviewController extends Controller
             'data' => $responseData // 作成されたレスポンスデータ
         ], 201);
     }
+
+        private function transformReview(Review $review): array
+        {
+            $user = $review->relationLoaded('user')
+                ? $review->user
+                : $review->user()->first();
+
+            $authorName = null;
+            $authorAvatar = null;
+
+            if ($user !== null) {
+                $authorName = $user->display_name ?: $user->name;
+                $authorAvatar = $this->normalizePublicUrl($user->avatar_url);
+            }
+
+            return [
+                'id' => $review->id,
+                'product_id' => $review->product_id,
+                'author_id' => $review->author_id,
+                'author_name' => $authorName,
+                'author_avatar_url' => $authorAvatar,
+                'title' => $review->title,
+                'body' => $review->body,
+                'rating' => $review->rating,
+                'helpful_count' => $review->helpful_count,
+                'created_at' => $review->created_at,
+                'updated_at' => $review->updated_at,
+            ];
+        }
+
+        private function normalizePublicUrl(?string $path): ?string
+        {
+            if ($path === null || $path === '') {
+                return null;
+            }
+
+            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
+                return $path;
+            }
+
+            return url($path);
+        }
 }
