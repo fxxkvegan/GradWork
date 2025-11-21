@@ -27,7 +27,7 @@ class Product extends Model
         'updated_at' => 'datetime',
         'rating' => 'float',
         'download_count' => 'integer',
-        'image_url' => 'string',
+        'image_url' => 'array',
     ];
 
     protected $appends = ['categoryIds'];
