@@ -103,11 +103,16 @@ class ReviewController extends Controller
         ];
 
         $reviews = $reviews->map(function (Review $review) {
+            $authorName = null;
+            if ($review->relationLoaded('user') && $review->user !== null) {
+                $authorName = $review->user->display_name ?: $review->user->name;
+            }
+
             return [
                 'id' => $review->id,
                 'product_id' => $review->product_id,
                 'author_id' => $review->author_id,
-                'author_name' => $review->user?->name,
+                'author_name' => $authorName,
                 'title' => $review->title,
                 'body' => $review->body,
                 'rating' => $review->rating,
@@ -173,11 +178,13 @@ class ReviewController extends Controller
         $average = $this->syncProductRating($productId);
         $count = Review::where('product_id', $productId)->count();
 
+        $authorName = $review->user?->display_name ?: $review->user?->name;
+
         $responseData = [
             'id' => $review->id,
             'product_id' => $review->product_id,
             'author_id' => $review->author_id,
-            'author_name' => $review->user?->name,
+            'author_name' => $authorName,
             'title' => $review->title,
             'body' => $review->body,
             'rating' => $review->rating,
@@ -242,11 +249,13 @@ class ReviewController extends Controller
         }
 
         // レスポンスデータの整形
+        $authorName = $review->user?->display_name ?: $review->user?->name;
+
         $responseData = [
             'id' => $review->id,
             'product_id' => $review->product_id,
             'author_id' => $review->author_id,
-            'author_name' => $review->user?->name,
+            'author_name' => $authorName,
             'title' => $review->title,
             'body' => $review->body,
             'rating' => $review->rating,
