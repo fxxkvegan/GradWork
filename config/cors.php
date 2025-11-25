@@ -25,7 +25,7 @@ return [
         'OPTIONS',
     ],
 
-    'allowed_origins' => ['http://localhost:5173/','http://localhost:5173','https://nice-dig.com/'],
+    'allowed_origins' => ['http://localhost:5173/','http://localhost:5173','https://nice-dig.com/','https://nice-dig.com'],
 
     'allowed_origins_patterns' => [],
 
