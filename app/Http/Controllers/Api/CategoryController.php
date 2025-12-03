@@ -5,7 +5,6 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Category;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
 
 class CategoryController extends Controller
 {
@@ -74,7 +73,6 @@ class CategoryController extends Controller
         if ($request->has('name')) {
             $category->name = $request->name;
         }
-        json_decode($category->image);
         $category->save();
 
         // 商品数を再取得
