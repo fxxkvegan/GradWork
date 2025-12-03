@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Carbon;
 
 class UserController extends Controller
 {
@@ -28,64 +29,39 @@ class UserController extends Controller
             ], 500);
         }
     }
+    public function show(User $user)
+    {
+        $user->loadCount('products');
+
+        return response()->json([
+            'message' => 'User profile',
+            'data' => $this->formatUserProfileResponse($user)
+        ]);
+    }
+
     // GET /users/me
     public function profile()
     {
         // TODO: 自分のプロフィール取得処理
-        $userId = Auth::id(); // 現在のユーザーIDを取得
-        $userId = intval($userId);
-        if (!is_numeric($userId) || $userId <= 0) {
-            return response()->json([
-                'message' => 'Invalid user ID',
-                'data' => null
-            ], 400);
+        $user = $this->authenticatedUser();
+        if (!$user) {
+            return $this->unauthorizedResponse();
         }
-        $responseData = User::find($userId);
-        if (!$responseData) {
-            return response()->json([
-                'message' => 'User not found',
-                'data' => null
-            ], 404);
-        }
-        // レスポンスデータの整形
-        $responseData = [
-            'id' => $responseData->id,
-            'name' => $responseData->name,
-            'displayName' => $responseData->display_name,
-            'email' => $responseData->email,
-            'avatarUrl' => $responseData->avatar_url,
-            'headerUrl' => $responseData->header_url,
-            'bio' => $responseData->bio,
-            'location' => $responseData->location,
-            'website' => $responseData->website,
-            'birthday' => $responseData->birthday,
-            'locale' => $responseData->locale,
-            'theme' => $responseData->theme,
-        ]; 
-        
+
+        $user->loadCount('products');
+
         return response()->json([
             'message' => 'User profile',
-            'data' => $responseData // ユーザー情報
+            'data' => $this->formatUserProfileResponse($user, true) // ユーザー情報
         ]);
     }
 
     // PUT /users/me
     public function updateProfile(Request $request)
     {
-        $userId = Auth::id(); // 現在のユーザーIDを取得
-        $userId = intval($userId);
-        if (!is_numeric($userId) || $userId <= 0) {
-            return response()->json([
-                'message' => 'Invalid user ID',
-                'data' => null
-            ], 400);
-        }
-        $user = User::find($userId);
+        $user = $this->authenticatedUser();
         if (!$user) {
-            return response()->json([
-                'message' => 'User not found',
-                'data' => null
-            ], 404);
+            return $this->unauthorizedResponse();
         }
 
         $validated = $request->validate([
@@ -183,25 +159,11 @@ class UserController extends Controller
         }
 
         $user->save();
-
-        $responseData = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'displayName' => $user->display_name,
-            'email' => $user->email,
-            'avatarUrl' => $user->avatar_url,
-            'headerUrl' => $user->header_url,
-            'bio' => $user->bio,
-            'location' => $user->location,
-            'website' => $user->website,
-            'birthday' => $user->birthday,
-            'locale' => $user->locale,
-            'theme' => $user->theme,
-        ];
+        $user->refresh()->loadCount('products');
 
         return response()->json([
             'message' => 'Profile updated',
-            'data' => $responseData // 更新後のユーザー情報
+            'data' => $this->formatUserProfileResponse($user, true) // 更新後のユーザー情報
         ]);
     }
 
@@ -209,20 +171,10 @@ class UserController extends Controller
     public function getSettings()
     {
         // TODO: ユーザー設定の取得処理
-        $userId = Auth::id(); // 現在のユーザーIDを取得
-        if (!$userId) {
-            return response()->json([
-                'message' => 'User not authenticated',
-                'data' => null
-            ], 401);
-        };
-        $user = User::find($userId);
+        $user = $this->authenticatedUser();
         if (!$user) {
-            return response()->json([
-                'message' => 'User not found',
-                'data' => null
-            ], 404);
-        };
+            return $this->unauthorizedResponse();
+        }
         // locale と theme のみを取得
         $settings = [
             'locale' => $user->locale,
@@ -239,20 +191,10 @@ class UserController extends Controller
     public function updateSettings(Request $request)
     {
         // TODO: ユーザー設定の更新処理
-        $userId = Auth::id(); // 現在のユーザーIDを取得
-        if (!$userId) {
-            return response()->json([
-                'message' => 'User not authenticated',
-                'data' => null
-            ], 401);
-        };
-        $user = User::find($userId);
+        $user = $this->authenticatedUser();
         if (!$user) {
-            return response()->json([
-                'message' => 'User not found',
-                'data' => null
-            ], 404);
-        };
+            return $this->unauthorizedResponse();
+        }
         // locale と theme の更新
         $user->locale = $request->input('locale', $user->locale);
         $user->theme = $request->input('theme', $user->theme);
@@ -302,5 +244,56 @@ class UserController extends Controller
         }
 
         Storage::disk('public')->delete($relativePath);
+    }
+
+    private function formatUserProfileResponse(User $user, bool $includeEmail = false): array
+    {
+        $birthdayValue = $user->birthday;
+        if ($birthdayValue instanceof Carbon) {
+            $birthdayValue = $birthdayValue->toDateString();
+        }
+
+        $joinedAt = $user->created_at instanceof Carbon
+            ? $user->created_at->toIso8601String()
+            : null;
+
+        $productsCount = (int) ($user->products_count ?? $user->products()->count());
+
+        $data = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'displayName' => $user->display_name,
+            'avatarUrl' => $user->avatar_url,
+            'headerUrl' => $user->header_url,
+            'bio' => $user->bio,
+            'location' => $user->location,
+            'website' => $user->website,
+            'birthday' => $birthdayValue,
+            'locale' => $user->locale,
+            'theme' => $user->theme,
+            'productsCount' => max(0, $productsCount),
+            'joinedAt' => $joinedAt,
+        ];
+
+        if ($includeEmail) {
+            $data['email'] = $user->email;
+        }
+
+        return $data;
+    }
+
+    private function authenticatedUser(): ?User
+    {
+        $user = Auth::user();
+
+        return $user instanceof User ? $user : null;
+    }
+
+    private function unauthorizedResponse()
+    {
+        return response()->json([
+            'message' => 'User not authenticated',
+            'data' => null
+        ], 401);
     }
 }

@@ -49,6 +49,8 @@ Route::post('/auth/signup', [AuthController::class, 'signup']);
 Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:api');
 // User routes
 Route::get('/users/all', [UserController::class, 'allusers']);
+Route::get('/users/{user}', [UserController::class, 'show'])
+	->whereNumber('user');
 Route::get('/users/me', [UserController::class, 'profile'])->middleware('auth:api');
 Route::put('/users/me', [UserController::class, 'updateProfile'])->middleware('auth:api');
 Route::get('/users/me/settings', [UserController::class, 'getSettings'])->middleware('auth:api');
