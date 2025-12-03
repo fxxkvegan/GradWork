@@ -273,6 +273,8 @@ class UserController extends Controller
             'theme' => $user->theme,
             'productsCount' => max(0, $productsCount),
             'joinedAt' => $joinedAt,
+            'followersCount' => 0,
+            'followingCount' => 0,
         ];
 
         if ($includeEmail) {
