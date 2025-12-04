@@ -57,6 +57,12 @@ Route::get('/users/me/settings', [UserController::class, 'getSettings'])->middle
 Route::put('/users/me/settings', [UserController::class, 'updateSettings'])->middleware('auth:api');
 Route::get('/users/me/history', [UserController::class, 'history'])->middleware('auth:api');
 Route::get('/users/me/products', [ProductController::class, 'myProducts'])->middleware('auth:api');
+Route::post('/users/{user}/follow', [UserController::class, 'follow'])
+	->whereNumber('user')
+	->middleware('auth:api');
+Route::delete('/users/{user}/follow', [UserController::class, 'unfollow'])
+	->whereNumber('user')
+	->middleware('auth:api');
 
 // Home route (ランディングページ用)
 Route::get('/home', [HomeController::class, 'index']);

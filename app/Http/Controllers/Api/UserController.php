@@ -31,11 +31,12 @@ class UserController extends Controller
     }
     public function show(User $user)
     {
-        $user->loadCount('products');
+        $viewer = $this->authenticatedUser();
+        $user->loadCount(['products', 'followers', 'following']);
 
         return response()->json([
             'message' => 'User profile',
-            'data' => $this->formatUserProfileResponse($user)
+            'data' => $this->formatUserProfileResponse($user, false, $viewer)
         ]);
     }
 
@@ -48,11 +49,11 @@ class UserController extends Controller
             return $this->unauthorizedResponse();
         }
 
-        $user->loadCount('products');
+        $user->loadCount(['products', 'followers', 'following']);
 
         return response()->json([
             'message' => 'User profile',
-            'data' => $this->formatUserProfileResponse($user, true) // ユーザー情報
+            'data' => $this->formatUserProfileResponse($user, true, $user) // ユーザー情報
         ]);
     }
 
@@ -159,11 +160,57 @@ class UserController extends Controller
         }
 
         $user->save();
-        $user->refresh()->loadCount('products');
+        $user->refresh()->loadCount(['products', 'followers', 'following']);
 
         return response()->json([
             'message' => 'Profile updated',
-            'data' => $this->formatUserProfileResponse($user, true) // 更新後のユーザー情報
+            'data' => $this->formatUserProfileResponse($user, true, $user) // 更新後のユーザー情報
+        ]);
+    }
+
+    public function follow(User $user)
+    {
+        $viewer = $this->authenticatedUser();
+        if (!$viewer) {
+            return $this->unauthorizedResponse();
+        }
+
+        if ($viewer->id === $user->id) {
+            return response()->json([
+                'message' => '自分をフォローすることはできません',
+                'data' => null,
+            ], 422);
+        }
+
+        $viewer->following()->syncWithoutDetaching([$user->id]);
+        $user->loadCount(['products', 'followers', 'following']);
+
+        return response()->json([
+            'message' => 'User followed',
+            'data' => $this->formatUserProfileResponse($user, false, $viewer)
+        ]);
+    }
+
+    public function unfollow(User $user)
+    {
+        $viewer = $this->authenticatedUser();
+        if (!$viewer) {
+            return $this->unauthorizedResponse();
+        }
+
+        if ($viewer->id === $user->id) {
+            return response()->json([
+                'message' => '自分のフォロー状態は変更できません',
+                'data' => null,
+            ], 422);
+        }
+
+        $viewer->following()->detach($user->id);
+        $user->loadCount(['products', 'followers', 'following']);
+
+        return response()->json([
+            'message' => 'User unfollowed',
+            'data' => $this->formatUserProfileResponse($user, false, $viewer)
         ]);
     }
 
@@ -246,7 +293,7 @@ class UserController extends Controller
         Storage::disk('public')->delete($relativePath);
     }
 
-    private function formatUserProfileResponse(User $user, bool $includeEmail = false): array
+    private function formatUserProfileResponse(User $user, bool $includeEmail = false, ?User $viewer = null): array
     {
         $birthdayValue = $user->birthday;
         if ($birthdayValue instanceof Carbon) {
@@ -258,6 +305,13 @@ class UserController extends Controller
             : null;
 
         $productsCount = (int) ($user->products_count ?? $user->products()->count());
+        $followersCount = (int) ($user->followers_count ?? $user->followers()->count());
+        $followingCount = (int) ($user->following_count ?? $user->following()->count());
+
+        $isFollowing = null;
+        if ($viewer instanceof User && $viewer->id !== $user->id) {
+            $isFollowing = $viewer->isFollowing($user);
+        }
 
         $data = [
             'id' => $user->id,
@@ -273,9 +327,13 @@ class UserController extends Controller
             'theme' => $user->theme,
             'productsCount' => max(0, $productsCount),
             'joinedAt' => $joinedAt,
-            'followersCount' => 0,
-            'followingCount' => 0,
+            'followersCount' => max(0, $followersCount),
+            'followingCount' => max(0, $followingCount),
         ];
+
+        if ($isFollowing !== null) {
+            $data['isFollowing'] = $isFollowing;
+        }
 
         if ($includeEmail) {
             $data['email'] = $user->email;
@@ -287,6 +345,9 @@ class UserController extends Controller
     private function authenticatedUser(): ?User
     {
         $user = Auth::user();
+        if (!$user instanceof User) {
+            $user = Auth::guard('api')->user();
+        }
 
         return $user instanceof User ? $user : null;
     }
