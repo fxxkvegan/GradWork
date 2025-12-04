@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\DirectMessageController;
 
 // Health check route
 Route::get('/health-check', \App\Http\Controllers\Api\HealthCheckController::class);
@@ -63,6 +64,15 @@ Route::post('/users/{user}/follow', [UserController::class, 'follow'])
 Route::delete('/users/{user}/follow', [UserController::class, 'unfollow'])
 	->whereNumber('user')
 	->middleware('auth:api');
+
+Route::middleware('auth:api')->prefix('dm')->group(function () {
+	Route::get('/conversations', [DirectMessageController::class, 'index']);
+	Route::post('/conversations', [DirectMessageController::class, 'store']);
+	Route::get('/conversations/{conversation}/messages', [DirectMessageController::class, 'messages'])
+		->whereNumber('conversation');
+	Route::post('/conversations/{conversation}/messages', [DirectMessageController::class, 'send'])
+		->whereNumber('conversation');
+});
 
 // Home route (ランディングページ用)
 Route::get('/home', [HomeController::class, 'index']);
