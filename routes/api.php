@@ -1,15 +1,14 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
+use App\Http\Controllers\Api\DirectMessageController;
+use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\RankingController;
 use App\Http\Controllers\Api\ReviewController;
-use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\UserController;
-use App\Http\Controllers\Api\HomeController;
-use App\Http\Controllers\Api\DirectMessageController;
+use Illuminate\Support\Facades\Route;
 
 // Health check route
 Route::get('/health-check', \App\Http\Controllers\Api\HealthCheckController::class);
@@ -51,29 +50,31 @@ Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth
 // User routes
 Route::get('/users/all', [UserController::class, 'allusers']);
 Route::get('/users/{user}', [UserController::class, 'show'])
-	->whereNumber('user');
+    ->whereNumber('user');
 Route::get('/users/me', [UserController::class, 'profile'])->middleware('auth:api');
 Route::put('/users/me', [UserController::class, 'updateProfile'])->middleware('auth:api');
 Route::get('/users/me/settings', [UserController::class, 'getSettings'])->middleware('auth:api');
 Route::put('/users/me/settings', [UserController::class, 'updateSettings'])->middleware('auth:api');
 Route::get('/users/me/history', [UserController::class, 'history'])->middleware('auth:api');
+Route::get('/users/me/notifications/reviews', [UserController::class, 'reviewNotifications'])->middleware('auth:api');
+Route::post('/users/me/notifications/reviews/read', [UserController::class, 'markReviewNotificationsRead'])->middleware('auth:api');
+Route::post('/users/me/notifications/reviews/read-all', [UserController::class, 'markAllReviewNotificationsRead'])->middleware('auth:api');
 Route::get('/users/me/products', [ProductController::class, 'myProducts'])->middleware('auth:api');
 Route::post('/users/{user}/follow', [UserController::class, 'follow'])
-	->whereNumber('user')
-	->middleware('auth:api');
+    ->whereNumber('user')
+    ->middleware('auth:api');
 Route::delete('/users/{user}/follow', [UserController::class, 'unfollow'])
-	->whereNumber('user')
-	->middleware('auth:api');
+    ->whereNumber('user')
+    ->middleware('auth:api');
 
 Route::middleware('auth:api')->prefix('dm')->group(function () {
-	Route::get('/conversations', [DirectMessageController::class, 'index']);
-	Route::post('/conversations', [DirectMessageController::class, 'store']);
-	Route::get('/conversations/{conversation}/messages', [DirectMessageController::class, 'messages'])
-		->whereNumber('conversation');
-	Route::post('/conversations/{conversation}/messages', [DirectMessageController::class, 'send'])
-		->whereNumber('conversation');
+    Route::get('/conversations', [DirectMessageController::class, 'index']);
+    Route::post('/conversations', [DirectMessageController::class, 'store']);
+    Route::get('/conversations/{conversation}/messages', [DirectMessageController::class, 'messages'])
+        ->whereNumber('conversation');
+    Route::post('/conversations/{conversation}/messages', [DirectMessageController::class, 'send'])
+        ->whereNumber('conversation');
 });
 
 // Home route (ランディングページ用)
 Route::get('/home', [HomeController::class, 'index']);
-

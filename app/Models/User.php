@@ -2,17 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use App\Models\Product;
-use App\Models\Conversation;
-use App\Models\Message;
+
 class User extends Authenticatable
 {
-    use Notifiable, HasApiTokens;
+    use HasApiTokens, Notifiable;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -78,5 +77,10 @@ class User extends Authenticatable
     public function isFollowing(self $user): bool
     {
         return $this->following()->where('users.id', $user->id)->exists();
+    }
+
+    public function reviewNotificationReads(): HasMany
+    {
+        return $this->hasMany(ReviewNotificationRead::class);
     }
 }

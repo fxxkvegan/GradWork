@@ -3,12 +3,16 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Review;
+use App\Models\ReviewNotificationRead;
 use App\Models\User;
+use App\Support\Presenters\ReviewNotificationPresenter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Carbon;
+use Illuminate\Database\Eloquent\Builder;
 
 class UserController extends Controller
 {
@@ -261,6 +265,158 @@ class UserController extends Controller
             'message' => 'User history',
             'data' => [] // 閲覧履歴データ
         ]);
+    }
+
+    public function reviewNotifications(Request $request)
+    {
+        $user = $this->authenticatedUser();
+        if (!$user) {
+            return $this->unauthorizedResponse();
+        }
+
+        $limit = (int) $request->query('limit', 50);
+        if ($limit < 1) {
+            $limit = 1;
+        }
+        if ($limit > 100) {
+            $limit = 100;
+        }
+
+        $baseQuery = $this->reviewNotificationsBaseQuery($user);
+
+        $reviews = (clone $baseQuery)
+            ->with(['product', 'product.user', 'user'])
+            ->limit($limit)
+            ->get();
+
+        $readStates = $reviews->isEmpty()
+            ? collect()
+            : ReviewNotificationRead::query()
+                ->where('user_id', $user->id)
+                ->whereIn('review_id', $reviews->pluck('id')->all())
+                ->get();
+
+        $items = ReviewNotificationPresenter::presentMany($reviews, $readStates);
+        $totalCount = (clone $baseQuery)->count();
+        $unreadCount = $this->unreadReviewNotificationsCount($user);
+
+        return response()->json([
+            'message' => 'Review notifications',
+            'data' => $items,
+            'meta' => [
+                'total' => $totalCount,
+                'unread_count' => $unreadCount,
+            ],
+        ]);
+    }
+
+    public function markReviewNotificationsRead(Request $request)
+    {
+        $user = $this->authenticatedUser();
+        if (!$user) {
+            return $this->unauthorizedResponse();
+        }
+
+        $validated = $request->validate([
+            'reviewIds' => ['required', 'array', 'min:1'],
+            'reviewIds.*' => ['integer', 'min:1'],
+        ]);
+
+        $reviewIds = array_values(array_unique($validated['reviewIds']));
+        if (empty($reviewIds)) {
+            return response()->json([
+                'message' => 'No notifications updated',
+                'data' => ['updated' => 0],
+                'meta' => ['unread_count' => $this->unreadReviewNotificationsCount($user)],
+            ]);
+        }
+
+        $targetReviewIds = $this->reviewNotificationsBaseQuery($user)
+            ->whereIn('reviews.id', $reviewIds)
+            ->pluck('reviews.id');
+
+        if ($targetReviewIds->isEmpty()) {
+            return response()->json([
+                'message' => 'No notifications updated',
+                'data' => ['updated' => 0],
+                'meta' => ['unread_count' => $this->unreadReviewNotificationsCount($user)],
+            ]);
+        }
+
+        $now = now();
+        $rows = $targetReviewIds->map(static fn (int $reviewId) => [
+            'user_id' => $user->id,
+            'review_id' => $reviewId,
+            'read_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        ReviewNotificationRead::upsert($rows, ['user_id', 'review_id'], ['read_at', 'updated_at']);
+
+        return response()->json([
+            'message' => 'Notifications marked as read',
+            'data' => ['updated' => count($rows)],
+            'meta' => ['unread_count' => $this->unreadReviewNotificationsCount($user)],
+        ]);
+    }
+
+    public function markAllReviewNotificationsRead()
+    {
+        $user = $this->authenticatedUser();
+        if (!$user) {
+            return $this->unauthorizedResponse();
+        }
+
+        $reviewIds = $this->reviewNotificationsBaseQuery($user)
+            ->pluck('reviews.id');
+
+        if ($reviewIds->isEmpty()) {
+            return response()->json([
+                'message' => 'No notifications to update',
+                'data' => ['updated' => 0],
+                'meta' => ['unread_count' => 0],
+            ]);
+        }
+
+        $now = now();
+        $rows = $reviewIds->map(static fn (int $reviewId) => [
+            'user_id' => $user->id,
+            'review_id' => $reviewId,
+            'read_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        ReviewNotificationRead::upsert($rows, ['user_id', 'review_id'], ['read_at', 'updated_at']);
+
+        return response()->json([
+            'message' => 'All notifications marked as read',
+            'data' => ['updated' => count($rows)],
+            'meta' => ['unread_count' => 0],
+        ]);
+    }
+
+    private function reviewNotificationsBaseQuery(User $user): Builder
+    {
+        return Review::query()
+            ->whereHas('product', static function (Builder $query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->where(static function (Builder $query) use ($user) {
+                $query->whereNull('author_id')
+                    ->orWhere('author_id', '<>', $user->id);
+            })
+            ->orderByDesc('created_at');
+    }
+
+    private function unreadReviewNotificationsCount(User $user): int
+    {
+        return $this->reviewNotificationsBaseQuery($user)
+            ->whereDoesntHave('notificationReads', static function (Builder $query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->count();
     }
 
     private function sanitizeNullableString(?string $value): ?string
