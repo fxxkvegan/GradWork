@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Database\Eloquent\Builder;
 
 class UserController extends Controller
@@ -322,43 +323,39 @@ class UserController extends Controller
             'reviewIds.*' => ['integer', 'min:1'],
         ]);
 
-        $reviewIds = array_values(array_unique($validated['reviewIds']));
-        if (empty($reviewIds)) {
-            return response()->json([
-                'message' => 'No notifications updated',
-                'data' => ['updated' => 0],
-                'meta' => ['unread_count' => $this->unreadReviewNotificationsCount($user)],
-            ]);
+        $reviewIds = collect($validated['reviewIds'])
+            ->map(static fn (int $id) => (int) $id)
+            ->filter(static fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($reviewIds->isEmpty()) {
+            return $this->notificationUpdateResponse(
+                'No notifications updated',
+                0,
+                $this->unreadReviewNotificationsCount($user)
+            );
         }
 
         $targetReviewIds = $this->reviewNotificationsBaseQuery($user)
-            ->whereIn('reviews.id', $reviewIds)
+            ->whereIn('reviews.id', $reviewIds->all())
             ->pluck('reviews.id');
 
         if ($targetReviewIds->isEmpty()) {
-            return response()->json([
-                'message' => 'No notifications updated',
-                'data' => ['updated' => 0],
-                'meta' => ['unread_count' => $this->unreadReviewNotificationsCount($user)],
-            ]);
+            return $this->notificationUpdateResponse(
+                'No notifications updated',
+                0,
+                $this->unreadReviewNotificationsCount($user)
+            );
         }
 
-        $now = now();
-        $rows = $targetReviewIds->map(static fn (int $reviewId) => [
-            'user_id' => $user->id,
-            'review_id' => $reviewId,
-            'read_at' => $now,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ])->all();
+        $updated = $this->upsertReviewNotificationReads($user, $targetReviewIds);
 
-        ReviewNotificationRead::upsert($rows, ['user_id', 'review_id'], ['read_at', 'updated_at']);
-
-        return response()->json([
-            'message' => 'Notifications marked as read',
-            'data' => ['updated' => count($rows)],
-            'meta' => ['unread_count' => $this->unreadReviewNotificationsCount($user)],
-        ]);
+        return $this->notificationUpdateResponse(
+            'Notifications marked as read',
+            $updated,
+            $this->unreadReviewNotificationsCount($user)
+        );
     }
 
     public function markAllReviewNotificationsRead()
@@ -372,29 +369,12 @@ class UserController extends Controller
             ->pluck('reviews.id');
 
         if ($reviewIds->isEmpty()) {
-            return response()->json([
-                'message' => 'No notifications to update',
-                'data' => ['updated' => 0],
-                'meta' => ['unread_count' => 0],
-            ]);
+            return $this->notificationUpdateResponse('No notifications to update', 0, 0);
         }
 
-        $now = now();
-        $rows = $reviewIds->map(static fn (int $reviewId) => [
-            'user_id' => $user->id,
-            'review_id' => $reviewId,
-            'read_at' => $now,
-            'created_at' => $now,
-            'updated_at' => $now,
-        ])->all();
+        $updated = $this->upsertReviewNotificationReads($user, $reviewIds);
 
-        ReviewNotificationRead::upsert($rows, ['user_id', 'review_id'], ['read_at', 'updated_at']);
-
-        return response()->json([
-            'message' => 'All notifications marked as read',
-            'data' => ['updated' => count($rows)],
-            'meta' => ['unread_count' => 0],
-        ]);
+        return $this->notificationUpdateResponse('All notifications marked as read', $updated, 0);
     }
 
     private function reviewNotificationsBaseQuery(User $user): Builder
@@ -417,6 +397,41 @@ class UserController extends Controller
                 $query->where('user_id', $user->id);
             })
             ->count();
+    }
+
+    private function upsertReviewNotificationReads(User $user, Collection $reviewIds): int
+    {
+        $reviewIds = $reviewIds
+            ->map(static fn ($id) => (int) $id)
+            ->filter(static fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($reviewIds->isEmpty()) {
+            return 0;
+        }
+
+        $now = now();
+        $rows = $reviewIds->map(static fn (int $reviewId) => [
+            'user_id' => $user->id,
+            'review_id' => $reviewId,
+            'read_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        ReviewNotificationRead::upsert($rows, ['user_id', 'review_id'], ['read_at', 'updated_at']);
+
+        return count($rows);
+    }
+
+    private function notificationUpdateResponse(string $message, int $updated, int $unreadCount)
+    {
+        return response()->json([
+            'message' => $message,
+            'data' => ['updated' => max(0, $updated)],
+            'meta' => ['unread_count' => max(0, $unreadCount)],
+        ]);
     }
 
     private function sanitizeNullableString(?string $value): ?string
