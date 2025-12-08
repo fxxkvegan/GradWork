@@ -251,7 +251,7 @@ class ProductController extends Controller
     }
 
     // DELETE /products/{productId}
-    public function destroy($productId)
+    public function destroy(Request $request, $productId)
     {
         $productId = intval($productId);
         if ($productId <= 0) {
@@ -263,7 +263,12 @@ class ProductController extends Controller
 
         $product = Product::findOrFail($productId);
 
-        // 画像ファイルを削除
+        if ($product->user_id !== $request->user()->id) {
+            return response()->json([
+                'message' => 'この作品を削除する権限がありません',
+            ], 403);
+        }
+
         $imageUrls = Product::decodeImageUrls($product->getRawOriginal('image_url'));
         foreach ($imageUrls as $url) {
             $path = str_replace('/storage/', '', parse_url($url, PHP_URL_PATH));
