@@ -49,7 +49,7 @@ class HomeController extends Controller
         return Product::with('categories')
             ->where('created_at', '>=', $resentWeeks)
             ->where('rating', '>=', 3.5)
-            ->orderByRaw('(rating * 0.4 + (download_count / 1000) * 0.6) DESC')
+            ->orderByRaw('(rating * 0.4 + (access_count / 1000) * 0.6) DESC')
             ->limit(10)
             ->get();
     }

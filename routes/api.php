@@ -21,6 +21,7 @@ Route::put('/products/{productId}', [ProductController::class, 'update'])->middl
 Route::delete('/products/{productId}', [ProductController::class, 'destroy'])->middleware('auth:api');
 Route::get('/products/{productId}/versions', [ProductController::class, 'versions']);
 Route::get('/products/{productId}/status', [ProductController::class, 'status']);
+Route::post('/products/{productId}/access', [ProductController::class, 'incrementAccessCount']);
 
 // Categories routes
 Route::get('/categories', [CategoryController::class, 'index']);

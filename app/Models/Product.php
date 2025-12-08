@@ -17,7 +17,10 @@ class Product extends Model
         'name',
         'description',
         'rating',
-        'download_count',
+        'access_count',
+        'google_play_url',
+        'app_store_url',
+        'web_app_url',
         'image_url',
         'user_id',
     ];
@@ -26,7 +29,7 @@ class Product extends Model
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
         'rating' => 'float',
-        'download_count' => 'integer',
+        'access_count' => 'integer',
         'image_url' => 'string',
     ];
 
@@ -65,10 +68,22 @@ class Product extends Model
         })->toArray();
     }
 
-    // downloadCountのアクセサ（Swagger仕様に合わせて）
-    public function getDownloadCountAttribute($value)
+    /**
+     * アクセス回数のアクセサ
+     */
+    public function getAccessCountAttribute($value)
     {
-        return $this->attributes['download_count'];
+        return $this->attributes['access_count'] ?? 0;
+    }
+
+    /**
+     * 外部リンクが設定されているかどうかを判定
+     */
+    public function hasExternalLinks(): bool
+    {
+        return !empty($this->google_play_url)
+            || !empty($this->app_store_url)
+            || !empty($this->web_app_url);
     }
 
     // 平均評価を取得するアクセサ（オプション）

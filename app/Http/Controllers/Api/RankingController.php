@@ -18,7 +18,7 @@ class RankingController extends Controller
 
         $rankings = Product::with(['categories:id,name', 'user'])
             ->orderByDesc('rating')
-            ->orderByDesc('download_count')
+            ->orderByDesc('access_count')
             ->take($limit)
             ->get()
             ->map(function (Product $product) {
@@ -34,7 +34,10 @@ class RankingController extends Controller
                     'name' => $product->name,
                     'description' => $product->description,
                     'rating' => (float) $product->rating,
-                    'download_count' => (int) $product->download_count,
+                    'access_count' => (int) $product->access_count,
+                    'google_play_url' => $product->google_play_url,
+                    'app_store_url' => $product->app_store_url,
+                    'web_app_url' => $product->web_app_url,
                     'image_urls' => $this->convertToFullUrls(
                         Product::decodeImageUrls($product->getRawOriginal('image_url'))
                     ),
