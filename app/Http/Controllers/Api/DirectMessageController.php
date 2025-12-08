@@ -6,11 +6,14 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\SendMessageRequest;
 use App\Http\Requests\StoreConversationRequest;
 use App\Models\Conversation;
+use App\Models\Message;
+use App\Models\User;
 use App\Services\MessageAttachmentService;
 use App\Support\Presenters\ConversationPresenter;
 use App\Support\Presenters\MessagePresenter;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Collection;
 
 class DirectMessageController extends Controller
 {
@@ -33,6 +36,16 @@ class DirectMessageController extends Controller
             ])
             ->orderByDesc('updated_at')
             ->get();
+
+        $conversationIds = $conversations->pluck('id')->all();
+        $unreadCounts = $this->unreadCountsFor($user, $conversationIds);
+
+        $conversations->each(static function (Conversation $conversation) use ($unreadCounts) {
+            $conversation->setAttribute(
+                'unread_count_for_viewer',
+                (int) ($unreadCounts[$conversation->id] ?? 0)
+            );
+        });
 
         return response()->json([
             'items' => ConversationPresenter::presentMany($conversations, $user),
@@ -92,7 +105,22 @@ class DirectMessageController extends Controller
             ->orderByDesc('created_at')
             ->paginate($perPage);
 
+        $conversation->participantRecords()
+            ->where('user_id', $user->id)
+            ->update(['last_read_at' => now()]);
+
         return response()->json(MessagePresenter::presentPaginator($messages));
+    }
+
+    public function unreadCount(Request $request)
+    {
+        $user = $request->user();
+
+        $total = $this->unreadCountsFor($user)->sum();
+
+        return response()->json([
+            'total' => (int) $total,
+        ]);
     }
 
     public function send(SendMessageRequest $request, Conversation $conversation)
@@ -121,6 +149,34 @@ class DirectMessageController extends Controller
         $conversation->touch();
 
         return response()->json(MessagePresenter::present($message), Response::HTTP_CREATED);
+    }
+
+    protected function unreadCountsFor(User $user, ?array $conversationIds = null): Collection
+    {
+        if ($conversationIds !== null && count($conversationIds) === 0) {
+            return collect();
+        }
+
+        $query = Message::query()
+            ->selectRaw('messages.conversation_id, COUNT(*) as unread_count')
+            ->join('conversation_participants as cp', static function ($join) use ($user) {
+                $join->on('cp.conversation_id', '=', 'messages.conversation_id')
+                    ->where('cp.user_id', '=', $user->id);
+            })
+            ->where('messages.sender_id', '!=', $user->id)
+            ->where(static function ($subQuery) {
+                $subQuery
+                    ->whereNull('cp.last_read_at')
+                    ->orWhereColumn('messages.created_at', '>', 'cp.last_read_at');
+            });
+
+        if ($conversationIds !== null) {
+            $query->whereIn('messages.conversation_id', $conversationIds);
+        }
+
+        return $query
+            ->groupBy('messages.conversation_id')
+            ->pluck('unread_count', 'messages.conversation_id');
     }
 
     protected function authorizeParticipant(Conversation $conversation, int $userId): void

@@ -68,6 +68,7 @@ Route::delete('/users/{user}/follow', [UserController::class, 'unfollow'])
     ->middleware('auth:api');
 
 Route::middleware('auth:api')->prefix('dm')->group(function () {
+    Route::get('/unread-count', [DirectMessageController::class, 'unreadCount']);
     Route::get('/conversations', [DirectMessageController::class, 'index']);
     Route::post('/conversations', [DirectMessageController::class, 'store']);
     Route::get('/conversations/{conversation}/messages', [DirectMessageController::class, 'messages'])

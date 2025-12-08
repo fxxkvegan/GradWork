@@ -13,6 +13,7 @@ class ConversationPresenter
         $participants = $conversation->participants instanceof Collection
             ? $conversation->participants
             : collect();
+        $unreadCount = (int) ($conversation->getAttribute('unread_count_for_viewer') ?? 0);
 
         return [
             'id' => $conversation->id,
@@ -25,7 +26,7 @@ class ConversationPresenter
                 : null,
             'updatedAt' => optional($conversation->updated_at)->toIso8601String(),
             'createdAt' => optional($conversation->created_at)->toIso8601String(),
-            'unreadCount' => 0,
+            'unreadCount' => $unreadCount,
         ];
     }
 
