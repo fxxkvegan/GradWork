@@ -5,31 +5,13 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductStatus;
-use App\Models\User;
 use App\Models\Version;
+use App\Support\Presenters\ProductPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
-    /**
-     * 相対パスの配列を完全なURLの配列に変換するヘルパーメソッド
-     * 
-     * @param array $relativePaths 相対パスの配列 ["/storage/products/xxx.jpg"]
-     * @return array 完全なURLの配列 ["https://app.nice-dig.com/storage/products/xxx.jpg"]
-     */
-    private function convertToFullUrls(array $relativePaths): array
-    {
-        return array_map(function ($path) {
-            // すでに完全なURLの場合はそのまま返す
-            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-                return $path;
-            }
-            // 相対パスを完全なURLに変換
-            return url($path);
-        }, $relativePaths);
-    }
-
     // GET /products
     public function index(Request $request)
     {
@@ -86,14 +68,8 @@ class ProductController extends Controller
             ], 200);
         }
 
-        $items = array_map(function (Product $product) {
-            $productArray = $product->toArray();
-            // ✅ JSONデコード → 完全なURLに変換
-            $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
-            $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
-            $productArray['owner'] = $this->transformUser($product->user);
-            unset($productArray['user']);
-            return $productArray;
+        $items = array_map(static function (Product $product) {
+            return ProductPresenter::present($product);
         }, $products->items());
 
         return response()->json([
@@ -153,14 +129,7 @@ class ProductController extends Controller
 
         $product->load(['categories', 'user']);
 
-        $productArray = $product->toArray();
-        // ✅ JSONデコード → 完全なURLに変換
-        $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
-        $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
-        $productArray['owner'] = $this->transformUser($product->user);
-        unset($productArray['user']);
-
-        return response()->json($productArray, 201);
+        return response()->json(ProductPresenter::present($product), 201);
     }
 
     // GET /products/{productId}
@@ -175,14 +144,7 @@ class ProductController extends Controller
 
         $product = Product::with(['categories', 'user'])->findOrFail($productId);
 
-        $productArray = $product->toArray();
-        // ✅ JSONデコード → 完全なURLに変換
-        $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
-        $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
-        $productArray['owner'] = $this->transformUser($product->user);
-        unset($productArray['user']);
-        
-        return response()->json($productArray);
+        return response()->json(ProductPresenter::present($product));
     }
 
     // PUT /products/{productId}
@@ -285,14 +247,7 @@ class ProductController extends Controller
 
         $product->load(['categories', 'user']);
 
-        $productArray = $product->toArray();
-        // ✅ JSONデコード → 完全なURLに変換
-        $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
-        $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
-        $productArray['owner'] = $this->transformUser($product->user);
-        unset($productArray['user']);
-
-        return response()->json($productArray);
+        return response()->json(ProductPresenter::present($product));
     }
 
     // DELETE /products/{productId}
@@ -365,14 +320,8 @@ class ProductController extends Controller
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
             ->get()
-            ->map(function (Product $product) {
-                $productArray = $product->toArray();
-                // ✅ JSONデコード → 完全なURLに変換
-                $decodedImages = Product::decodeImageUrls($product->getRawOriginal('image_url'));
-                $productArray['image_url'] = $this->convertToFullUrls($decodedImages);
-                $productArray['owner'] = $this->transformUser($product->user);
-                unset($productArray['user']);
-                return $productArray;
+            ->map(static function (Product $product) {
+                return ProductPresenter::present($product);
             });
 
         return response()->json([
@@ -380,37 +329,6 @@ class ProductController extends Controller
             'count' => $products->count(),
         ]);
     }
-
-        private function transformUser(?User $user): ?array
-        {
-            if ($user === null) {
-                return null;
-            }
-
-            return [
-                'id' => $user->id,
-                'name' => $user->name,
-                'displayName' => $user->display_name,
-                'avatarUrl' => $this->normalizePublicUrl($user->avatar_url),
-                'headerUrl' => $this->normalizePublicUrl($user->header_url),
-                'bio' => $user->bio,
-                'location' => $user->location,
-                'website' => $user->website,
-            ];
-        }
-
-        private function normalizePublicUrl(?string $path): ?string
-        {
-            if ($path === null || $path === '') {
-                return null;
-            }
-
-            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-                return $path;
-            }
-
-            return url($path);
-        }
 
     /**
      * POST /products/{productId}/access

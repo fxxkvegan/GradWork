@@ -4,26 +4,23 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
-use App\Http\Controllers\Api\RankingController;
+use App\Support\Presenters\ProductPresenter;
 use Carbon\Carbon;
-use Illuminate\Http\Request;
 
 class HomeController extends Controller
 {
     // GET /home
     public function index()
     {
-        // TODO: ランディングページ用の集約データ取得処理
-        $rankingController = new RankingController();
-        $topRanked = $rankingController->index(new Request());
-        if ($topRanked->isEmpty()) {    //ランキングがからの場合の例外処理
+        $topRanked = $this->topRankedProducts();
+        if (empty($topRanked)) {
             return response()->json([
                 'message' => 'No top ranked products found',
                 'data' => [null]
             ], 404);
         }
-        $trending = $this->getTrendingProducts();
-        if ($trending->isEmpty()) {     //トレンド商品がからの場合の例外処理
+        $trending = $this->trendingProducts();
+        if (empty($trending)) {
             return response()->json([
                 'message' => 'No trending products found',
                 'data' => [null]
@@ -34,23 +31,43 @@ class HomeController extends Controller
             'data' => [
                 'topRanked' => [
                     'items' => $topRanked,
-                    'total' => $topRanked->count(),
+                    'total' => count($topRanked),
                 ],
                 'trending' => [
                     'items' => $trending,
-                    'total' => $trending->count(),
+                    'total' => count($trending),
                 ]
             ]
         ]);
     }
-    public function getTrendingProducts()
+
+    private function topRankedProducts(int $limit = 10): array
     {
-        $resentWeeks = Carbon::now()->subWeeks(4);
-        return Product::with('categories')
-            ->where('created_at', '>=', $resentWeeks)
+        return Product::with(['categories:id,name', 'user'])
+            ->orderByDesc('rating')
+            ->orderByDesc('access_count')
+            ->limit($limit)
+            ->get()
+            ->map(static function (Product $product) {
+                return ProductPresenter::present($product);
+            })
+            ->all();
+    }
+
+    private function trendingProducts(int $limit = 10): array
+    {
+        $recentWeeks = Carbon::now()->subWeeks(4);
+
+        return Product::with(['categories:id,name', 'user'])
+            ->where('created_at', '>=', $recentWeeks)
             ->where('rating', '>=', 3.5)
             ->orderByRaw('(rating * 0.4 + (access_count / 1000) * 0.6) DESC')
-            ->limit(10)
-            ->get();
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(static function (Product $product) {
+                return ProductPresenter::present($product);
+            })
+            ->all();
     }
 }

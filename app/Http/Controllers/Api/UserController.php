@@ -3,11 +3,17 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Review;
+use App\Models\ReviewNotificationRead;
 use App\Models\User;
+use App\Support\Presenters\ReviewNotificationPresenter;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Builder;
 
 class UserController extends Controller
 {
@@ -28,64 +34,40 @@ class UserController extends Controller
             ], 500);
         }
     }
+    public function show(User $user)
+    {
+        $viewer = $this->authenticatedUser();
+        $user->loadCount(['products', 'followers', 'following']);
+
+        return response()->json([
+            'message' => 'User profile',
+            'data' => $this->formatUserProfileResponse($user, false, $viewer)
+        ]);
+    }
+
     // GET /users/me
     public function profile()
     {
         // TODO: 自分のプロフィール取得処理
-        $userId = Auth::id(); // 現在のユーザーIDを取得
-        $userId = intval($userId);
-        if (!is_numeric($userId) || $userId <= 0) {
-            return response()->json([
-                'message' => 'Invalid user ID',
-                'data' => null
-            ], 400);
+        $user = $this->authenticatedUser();
+        if (!$user) {
+            return $this->unauthorizedResponse();
         }
-        $responseData = User::find($userId);
-        if (!$responseData) {
-            return response()->json([
-                'message' => 'User not found',
-                'data' => null
-            ], 404);
-        }
-        // レスポンスデータの整形
-        $responseData = [
-            'id' => $responseData->id,
-            'name' => $responseData->name,
-            'displayName' => $responseData->display_name,
-            'email' => $responseData->email,
-            'avatarUrl' => $responseData->avatar_url,
-            'headerUrl' => $responseData->header_url,
-            'bio' => $responseData->bio,
-            'location' => $responseData->location,
-            'website' => $responseData->website,
-            'birthday' => $responseData->birthday,
-            'locale' => $responseData->locale,
-            'theme' => $responseData->theme,
-        ]; 
-        
+
+        $user->loadCount(['products', 'followers', 'following']);
+
         return response()->json([
             'message' => 'User profile',
-            'data' => $responseData // ユーザー情報
+            'data' => $this->formatUserProfileResponse($user, true, $user) // ユーザー情報
         ]);
     }
 
     // PUT /users/me
     public function updateProfile(Request $request)
     {
-        $userId = Auth::id(); // 現在のユーザーIDを取得
-        $userId = intval($userId);
-        if (!is_numeric($userId) || $userId <= 0) {
-            return response()->json([
-                'message' => 'Invalid user ID',
-                'data' => null
-            ], 400);
-        }
-        $user = User::find($userId);
+        $user = $this->authenticatedUser();
         if (!$user) {
-            return response()->json([
-                'message' => 'User not found',
-                'data' => null
-            ], 404);
+            return $this->unauthorizedResponse();
         }
 
         $validated = $request->validate([
@@ -183,25 +165,57 @@ class UserController extends Controller
         }
 
         $user->save();
-
-        $responseData = [
-            'id' => $user->id,
-            'name' => $user->name,
-            'displayName' => $user->display_name,
-            'email' => $user->email,
-            'avatarUrl' => $user->avatar_url,
-            'headerUrl' => $user->header_url,
-            'bio' => $user->bio,
-            'location' => $user->location,
-            'website' => $user->website,
-            'birthday' => $user->birthday,
-            'locale' => $user->locale,
-            'theme' => $user->theme,
-        ];
+        $user->refresh()->loadCount(['products', 'followers', 'following']);
 
         return response()->json([
             'message' => 'Profile updated',
-            'data' => $responseData // 更新後のユーザー情報
+            'data' => $this->formatUserProfileResponse($user, true, $user) // 更新後のユーザー情報
+        ]);
+    }
+
+    public function follow(User $user)
+    {
+        $viewer = $this->authenticatedUser();
+        if (!$viewer) {
+            return $this->unauthorizedResponse();
+        }
+
+        if ($viewer->id === $user->id) {
+            return response()->json([
+                'message' => '自分をフォローすることはできません',
+                'data' => null,
+            ], 422);
+        }
+
+        $viewer->following()->syncWithoutDetaching([$user->id]);
+        $user->loadCount(['products', 'followers', 'following']);
+
+        return response()->json([
+            'message' => 'User followed',
+            'data' => $this->formatUserProfileResponse($user, false, $viewer)
+        ]);
+    }
+
+    public function unfollow(User $user)
+    {
+        $viewer = $this->authenticatedUser();
+        if (!$viewer) {
+            return $this->unauthorizedResponse();
+        }
+
+        if ($viewer->id === $user->id) {
+            return response()->json([
+                'message' => '自分のフォロー状態は変更できません',
+                'data' => null,
+            ], 422);
+        }
+
+        $viewer->following()->detach($user->id);
+        $user->loadCount(['products', 'followers', 'following']);
+
+        return response()->json([
+            'message' => 'User unfollowed',
+            'data' => $this->formatUserProfileResponse($user, false, $viewer)
         ]);
     }
 
@@ -209,20 +223,10 @@ class UserController extends Controller
     public function getSettings()
     {
         // TODO: ユーザー設定の取得処理
-        $userId = Auth::id(); // 現在のユーザーIDを取得
-        if (!$userId) {
-            return response()->json([
-                'message' => 'User not authenticated',
-                'data' => null
-            ], 401);
-        };
-        $user = User::find($userId);
+        $user = $this->authenticatedUser();
         if (!$user) {
-            return response()->json([
-                'message' => 'User not found',
-                'data' => null
-            ], 404);
-        };
+            return $this->unauthorizedResponse();
+        }
         // locale と theme のみを取得
         $settings = [
             'locale' => $user->locale,
@@ -239,20 +243,10 @@ class UserController extends Controller
     public function updateSettings(Request $request)
     {
         // TODO: ユーザー設定の更新処理
-        $userId = Auth::id(); // 現在のユーザーIDを取得
-        if (!$userId) {
-            return response()->json([
-                'message' => 'User not authenticated',
-                'data' => null
-            ], 401);
-        };
-        $user = User::find($userId);
+        $user = $this->authenticatedUser();
         if (!$user) {
-            return response()->json([
-                'message' => 'User not found',
-                'data' => null
-            ], 404);
-        };
+            return $this->unauthorizedResponse();
+        }
         // locale と theme の更新
         $user->locale = $request->input('locale', $user->locale);
         $user->theme = $request->input('theme', $user->theme);
@@ -271,6 +265,172 @@ class UserController extends Controller
         return response()->json([
             'message' => 'User history',
             'data' => [] // 閲覧履歴データ
+        ]);
+    }
+
+    public function reviewNotifications(Request $request)
+    {
+        $user = $this->authenticatedUser();
+        if (!$user) {
+            return $this->unauthorizedResponse();
+        }
+
+        $limit = (int) $request->query('limit', 50);
+        if ($limit < 1) {
+            $limit = 1;
+        }
+        if ($limit > 100) {
+            $limit = 100;
+        }
+
+        $baseQuery = $this->reviewNotificationsBaseQuery($user);
+
+        $reviews = (clone $baseQuery)
+            ->with(['product', 'product.user', 'user'])
+            ->limit($limit)
+            ->get();
+
+        $readStates = $reviews->isEmpty()
+            ? collect()
+            : ReviewNotificationRead::query()
+                ->where('user_id', $user->id)
+                ->whereIn('review_id', $reviews->pluck('id')->all())
+                ->get();
+
+        $items = ReviewNotificationPresenter::presentMany($reviews, $readStates);
+        $totalCount = (clone $baseQuery)->count();
+        $unreadCount = $this->unreadReviewNotificationsCount($user);
+
+        return response()->json([
+            'message' => 'Review notifications',
+            'data' => $items,
+            'meta' => [
+                'total' => $totalCount,
+                'unread_count' => $unreadCount,
+            ],
+        ]);
+    }
+
+    public function markReviewNotificationsRead(Request $request)
+    {
+        $user = $this->authenticatedUser();
+        if (!$user) {
+            return $this->unauthorizedResponse();
+        }
+
+        $validated = $request->validate([
+            'reviewIds' => ['required', 'array', 'min:1'],
+            'reviewIds.*' => ['integer', 'min:1'],
+        ]);
+
+        $reviewIds = collect($validated['reviewIds'])
+            ->map(static fn (int $id) => (int) $id)
+            ->filter(static fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($reviewIds->isEmpty()) {
+            return $this->notificationUpdateResponse(
+                'No notifications updated',
+                0,
+                $this->unreadReviewNotificationsCount($user)
+            );
+        }
+
+        $targetReviewIds = $this->reviewNotificationsBaseQuery($user)
+            ->whereIn('reviews.id', $reviewIds->all())
+            ->pluck('reviews.id');
+
+        if ($targetReviewIds->isEmpty()) {
+            return $this->notificationUpdateResponse(
+                'No notifications updated',
+                0,
+                $this->unreadReviewNotificationsCount($user)
+            );
+        }
+
+        $updated = $this->upsertReviewNotificationReads($user, $targetReviewIds);
+
+        return $this->notificationUpdateResponse(
+            'Notifications marked as read',
+            $updated,
+            $this->unreadReviewNotificationsCount($user)
+        );
+    }
+
+    public function markAllReviewNotificationsRead()
+    {
+        $user = $this->authenticatedUser();
+        if (!$user) {
+            return $this->unauthorizedResponse();
+        }
+
+        $reviewIds = $this->reviewNotificationsBaseQuery($user)
+            ->pluck('reviews.id');
+
+        if ($reviewIds->isEmpty()) {
+            return $this->notificationUpdateResponse('No notifications to update', 0, 0);
+        }
+
+        $updated = $this->upsertReviewNotificationReads($user, $reviewIds);
+
+        return $this->notificationUpdateResponse('All notifications marked as read', $updated, 0);
+    }
+
+    private function reviewNotificationsBaseQuery(User $user): Builder
+    {
+        return Review::query()
+            ->whereHas('product', static function (Builder $query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->where(static function (Builder $query) use ($user) {
+                $query->whereNull('author_id')
+                    ->orWhere('author_id', '<>', $user->id);
+            })
+            ->orderByDesc('created_at');
+    }
+
+    private function unreadReviewNotificationsCount(User $user): int
+    {
+        return $this->reviewNotificationsBaseQuery($user)
+            ->whereDoesntHave('notificationReads', static function (Builder $query) use ($user) {
+                $query->where('user_id', $user->id);
+            })
+            ->count();
+    }
+
+    private function upsertReviewNotificationReads(User $user, Collection $reviewIds): int
+    {
+        $reviewIds = $reviewIds
+            ->map(static fn ($id) => (int) $id)
+            ->filter(static fn (int $id) => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($reviewIds->isEmpty()) {
+            return 0;
+        }
+
+        $now = now();
+        $rows = $reviewIds->map(static fn (int $reviewId) => [
+            'user_id' => $user->id,
+            'review_id' => $reviewId,
+            'read_at' => $now,
+            'created_at' => $now,
+            'updated_at' => $now,
+        ])->all();
+
+        ReviewNotificationRead::upsert($rows, ['user_id', 'review_id'], ['read_at', 'updated_at']);
+
+        return count($rows);
+    }
+
+    private function notificationUpdateResponse(string $message, int $updated, int $unreadCount)
+    {
+        return response()->json([
+            'message' => $message,
+            'data' => ['updated' => max(0, $updated)],
+            'meta' => ['unread_count' => max(0, $unreadCount)],
         ]);
     }
 
@@ -302,5 +462,72 @@ class UserController extends Controller
         }
 
         Storage::disk('public')->delete($relativePath);
+    }
+
+    private function formatUserProfileResponse(User $user, bool $includeEmail = false, ?User $viewer = null): array
+    {
+        $birthdayValue = $user->birthday;
+        if ($birthdayValue instanceof Carbon) {
+            $birthdayValue = $birthdayValue->toDateString();
+        }
+
+        $joinedAt = $user->created_at instanceof Carbon
+            ? $user->created_at->toIso8601String()
+            : null;
+
+        $productsCount = (int) ($user->products_count ?? $user->products()->count());
+        $followersCount = (int) ($user->followers_count ?? $user->followers()->count());
+        $followingCount = (int) ($user->following_count ?? $user->following()->count());
+
+        $isFollowing = null;
+        if ($viewer instanceof User && $viewer->id !== $user->id) {
+            $isFollowing = $viewer->isFollowing($user);
+        }
+
+        $data = [
+            'id' => $user->id,
+            'name' => $user->name,
+            'displayName' => $user->display_name,
+            'avatarUrl' => $user->avatar_url,
+            'headerUrl' => $user->header_url,
+            'bio' => $user->bio,
+            'location' => $user->location,
+            'website' => $user->website,
+            'birthday' => $birthdayValue,
+            'locale' => $user->locale,
+            'theme' => $user->theme,
+            'productsCount' => max(0, $productsCount),
+            'joinedAt' => $joinedAt,
+            'followersCount' => max(0, $followersCount),
+            'followingCount' => max(0, $followingCount),
+        ];
+
+        if ($isFollowing !== null) {
+            $data['isFollowing'] = $isFollowing;
+        }
+
+        if ($includeEmail) {
+            $data['email'] = $user->email;
+        }
+
+        return $data;
+    }
+
+    private function authenticatedUser(): ?User
+    {
+        $user = Auth::user();
+        if (!$user instanceof User) {
+            $user = Auth::guard('api')->user();
+        }
+
+        return $user instanceof User ? $user : null;
+    }
+
+    private function unauthorizedResponse()
+    {
+        return response()->json([
+            'message' => 'User not authenticated',
+            'data' => null
+        ], 401);
     }
 }

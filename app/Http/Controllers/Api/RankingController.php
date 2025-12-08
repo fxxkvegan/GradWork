@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Product;
-use App\Models\User;
+use App\Support\Presenters\ProductPresenter;
 use Illuminate\Http\Request;
 
 
@@ -38,12 +38,10 @@ class RankingController extends Controller
                     'google_play_url' => $product->google_play_url,
                     'app_store_url' => $product->app_store_url,
                     'web_app_url' => $product->web_app_url,
-                    'image_urls' => $this->convertToFullUrls(
-                        Product::decodeImageUrls($product->getRawOriginal('image_url'))
-                    ),
+                    'image_urls' => ProductPresenter::imageUrls($product),
                     'category_ids' => $product->categoryIds,
                     'categories' => $categories,
-                    'owner' => $this->transformUser($product->user),
+                    'owner' => ProductPresenter::presentOwner($product->user),
                 ];
             })->values();
 
@@ -52,50 +50,5 @@ class RankingController extends Controller
             'items' => $rankings,
             'count' => $rankings->count(),
         ], 200);
-    }
-    private function transformUser(?User $user): ?array
-    {
-        if ($user === null) {
-            return null;
-        }
-
-        return [
-            'id' => $user->id,
-            'name' => $user->name,
-            'displayName' => $user->display_name,
-            'avatarUrl' => $this->normalizePublicUrl($user->avatar_url),
-            'headerUrl' => $this->normalizePublicUrl($user->header_url),
-            'bio' => $user->bio,
-            'location' => $user->location,
-            'website' => $user->website,
-        ];
-    }
-
-    private function normalizePublicUrl(?string $path): ?string
-    {
-        if ($path === null || $path === '') {
-            return null;
-        }
-
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-            return $path;
-        }
-
-        return url($path);
-    }
-
-    private function convertToFullUrls(array $paths): array
-    {
-        return array_map(function ($path) {
-            if (!is_string($path) || $path === '') {
-                return $path;
-            }
-
-            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-                return $path;
-            }
-
-            return url($path);
-        }, $paths);
     }
 }
