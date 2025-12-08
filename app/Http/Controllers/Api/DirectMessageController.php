@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\SendMessageRequest;
 use App\Http\Requests\StoreConversationRequest;
+use App\Http\Requests\UpdateMessageRequest;
 use App\Models\Conversation;
 use App\Models\Message;
 use App\Models\User;
@@ -151,6 +152,49 @@ class DirectMessageController extends Controller
         return response()->json(MessagePresenter::present($message), Response::HTTP_CREATED);
     }
 
+    public function update(UpdateMessageRequest $request, Conversation $conversation, Message $message)
+    {
+        $user = $request->user();
+        $this->authorizeParticipant($conversation, $user->id);
+        $this->assertMessageBelongsToConversation($conversation, $message);
+        $this->authorizeSender($message, $user->id);
+
+        abort_if($message->is_deleted, Response::HTTP_BAD_REQUEST, '削除済みのメッセージは編集できません。');
+
+        $body = $request->input('body');
+
+        $message->forceFill([
+            'body' => $body,
+            'edited_at' => now(),
+        ])->save();
+
+        $message->loadMissing(['sender:id,name,display_name,avatar_url', 'attachments']);
+        $conversation->touch();
+
+        return response()->json(MessagePresenter::present($message));
+    }
+
+    public function destroy(Request $request, Conversation $conversation, Message $message)
+    {
+        $user = $request->user();
+        $this->authorizeParticipant($conversation, $user->id);
+        $this->assertMessageBelongsToConversation($conversation, $message);
+        $this->authorizeSender($message, $user->id);
+
+        if (!$message->is_deleted) {
+            $message->forceFill([
+                'is_deleted' => true,
+                'deleted_at' => now(),
+                'has_attachments' => false,
+            ])->save();
+        }
+
+        $message->loadMissing(['sender:id,name,display_name,avatar_url']);
+        $conversation->touch();
+
+        return response()->json(MessagePresenter::present($message));
+    }
+
     protected function unreadCountsFor(User $user, ?array $conversationIds = null): Collection
     {
         if ($conversationIds !== null && count($conversationIds) === 0) {
@@ -186,6 +230,20 @@ class DirectMessageController extends Controller
             ->exists();
 
         abort_unless($exists, Response::HTTP_FORBIDDEN, 'この会話にアクセスする権限がありません。');
+    }
+
+    protected function authorizeSender(Message $message, int $userId): void
+    {
+        abort_unless($message->sender_id === $userId, Response::HTTP_FORBIDDEN, '自分のメッセージのみ操作できます。');
+    }
+
+    protected function assertMessageBelongsToConversation(Conversation $conversation, Message $message): void
+    {
+        abort_unless(
+            $message->conversation_id === $conversation->id,
+            Response::HTTP_NOT_FOUND,
+            'メッセージが見つかりません。'
+        );
     }
 
     protected function findExistingDirectConversation(int $currentUserId, int $otherUserId): ?Conversation

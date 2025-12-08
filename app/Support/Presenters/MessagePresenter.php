@@ -12,17 +12,26 @@ class MessagePresenter
 {
     public static function present(Message $message): array
     {
+        $isDeleted = (bool) $message->is_deleted;
+        $body = $isDeleted ? null : $message->body;
+        $hasAttachments = $isDeleted ? false : (bool) $message->has_attachments;
+        $attachments =
+            !$isDeleted && $message->relationLoaded('attachments')
+                ? $message->attachments->map(static fn (MessageAttachment $attachment) => self::presentAttachment($attachment))->all()
+                : [];
+
         return [
             'id' => $message->id,
             'conversationId' => $message->conversation_id,
-            'body' => $message->body,
-            'hasAttachments' => (bool) $message->has_attachments,
-            'attachments' => $message->relationLoaded('attachments')
-                ? $message->attachments->map(static fn (MessageAttachment $attachment) => self::presentAttachment($attachment))->all()
-                : [],
+            'body' => $body,
+            'hasAttachments' => $hasAttachments,
+            'attachments' => $attachments,
             'sender' => self::presentSender($message->sender),
             'readAt' => optional($message->read_at)->toIso8601String(),
             'createdAt' => optional($message->created_at)->toIso8601String(),
+            'isDeleted' => $isDeleted,
+            'deletedAt' => optional($message->deleted_at)->toIso8601String(),
+            'editedAt' => optional($message->edited_at)->toIso8601String(),
         ];
     }
 

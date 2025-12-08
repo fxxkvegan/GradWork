@@ -17,11 +17,17 @@ class Message extends Model
         'body',
         'has_attachments',
         'read_at',
+        'is_deleted',
+        'deleted_at',
+        'edited_at',
     ];
 
     protected $casts = [
         'has_attachments' => 'boolean',
         'read_at' => 'datetime',
+        'is_deleted' => 'boolean',
+        'deleted_at' => 'datetime',
+        'edited_at' => 'datetime',
     ];
 
     public function conversation(): BelongsTo

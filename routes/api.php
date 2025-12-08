@@ -75,6 +75,12 @@ Route::middleware('auth:api')->prefix('dm')->group(function () {
         ->whereNumber('conversation');
     Route::post('/conversations/{conversation}/messages', [DirectMessageController::class, 'send'])
         ->whereNumber('conversation');
+    Route::put('/conversations/{conversation}/messages/{message}', [DirectMessageController::class, 'update'])
+        ->whereNumber('conversation')
+        ->whereNumber('message');
+    Route::delete('/conversations/{conversation}/messages/{message}', [DirectMessageController::class, 'destroy'])
+        ->whereNumber('conversation')
+        ->whereNumber('message');
 });
 
 // Home route (ランディングページ用)
