@@ -22,7 +22,7 @@ class ProductController extends Controller
             'categoryIds.*' => 'integer|exists:categories,id',
             'page' => 'nullable|integer|min:1',
             'limit' => 'nullable|integer|min:1|max:100',
-            'sort' => 'nullable|string|in:name,rating,download_count,created_at',
+            'sort' => 'nullable|string|in:name,rating,access_count,created_at',
         ]);
 
         $productsQuery = Product::with(['categories', 'user']);
@@ -44,8 +44,8 @@ class ProductController extends Controller
             case 'rating':
                 $productsQuery->orderBy('rating', 'desc');
                 break;
-            case 'download_count':
-                $productsQuery->orderBy('download_count', 'desc');
+            case 'access_count':
+                $productsQuery->orderBy('access_count', 'desc');
                 break;
             case 'created_at':
                 $productsQuery->orderBy('created_at', 'desc');
@@ -96,6 +96,9 @@ class ProductController extends Controller
             'image_url.*' => 'file|mimes:jpg,jpeg,png,gif',
             'remove_image_urls' => 'nullable|array',
             'remove_image_urls.*' => 'string',
+            'google_play_url' => 'nullable|url|max:2048',
+            'app_store_url' => 'nullable|url|max:2048',
+            'web_app_url' => 'nullable|url|max:2048',
         ]);
 
         $imageUrls = [];
@@ -112,7 +115,10 @@ class ProductController extends Controller
             'name' => $request->name,
             'description' => $request->description,
             'rating' => 0,
-            'download_count' => 0,
+            'access_count' => 0,
+            'google_play_url' => $request->google_play_url,
+            'app_store_url' => $request->app_store_url,
+            'web_app_url' => $request->web_app_url,
             'image_url' => $imageUrls ? json_encode($imageUrls) : null,
             'user_id' => $request->user()->id,
         ]);
@@ -153,6 +159,9 @@ class ProductController extends Controller
             'image_url.*' => 'file|mimes:jpg,jpeg,png,gif',
             'remove_image_urls' => 'nullable|array',
             'remove_image_urls.*' => 'string',
+            'google_play_url' => 'nullable|url|max:2048',
+            'app_store_url' => 'nullable|url|max:2048',
+            'web_app_url' => 'nullable|url|max:2048',
         ]);
 
         $productId = intval($productId);
@@ -214,11 +223,23 @@ class ProductController extends Controller
 
         $imageUrls = array_merge($remainingImages, $newImages);
 
-        $product->update([
+        $updateData = [
             'name' => $request->name,
             'description' => $request->description,
             'image_url' => json_encode($imageUrls),
-        ]);
+        ];
+
+        if ($request->has('google_play_url')) {
+            $updateData['google_play_url'] = $request->google_play_url;
+        }
+        if ($request->has('app_store_url')) {
+            $updateData['app_store_url'] = $request->app_store_url;
+        }
+        if ($request->has('web_app_url')) {
+            $updateData['web_app_url'] = $request->web_app_url;
+        }
+
+        $product->update($updateData);
 
         if ($request->has('categoryIds')) {
             $product->categories()->sync($request->categoryIds);
@@ -230,7 +251,7 @@ class ProductController extends Controller
     }
 
     // DELETE /products/{productId}
-    public function destroy($productId)
+    public function destroy(Request $request, $productId)
     {
         $productId = intval($productId);
         if ($productId <= 0) {
@@ -242,7 +263,12 @@ class ProductController extends Controller
 
         $product = Product::findOrFail($productId);
 
-        // 画像ファイルを削除
+        if ($product->user_id !== $request->user()->id) {
+            return response()->json([
+                'message' => 'この作品を削除する権限がありません',
+            ], 403);
+        }
+
         $imageUrls = Product::decodeImageUrls($product->getRawOriginal('image_url'));
         foreach ($imageUrls as $url) {
             $path = str_replace('/storage/', '', parse_url($url, PHP_URL_PATH));
@@ -306,6 +332,35 @@ class ProductController extends Controller
         return response()->json([
             'items' => $products,
             'count' => $products->count(),
+        ]);
+    }
+
+    /**
+     * POST /products/{productId}/access
+     * アクセスカウントをインクリメントする
+     */
+    public function incrementAccessCount($productId)
+    {
+        $productId = intval($productId);
+        if ($productId <= 0) {
+            return response()->json([
+                'message' => 'Invalid product ID'
+            ], 400);
+        }
+
+        $product = Product::findOrFail($productId);
+
+        if (!$product->hasExternalLinks()) {
+            return response()->json([
+                'message' => 'This product has no external links',
+            ], 400);
+        }
+
+        $product->increment('access_count');
+
+        return response()->json([
+            'message' => 'Access count incremented',
+            'access_count' => $product->access_count,
         ]);
     }
 }

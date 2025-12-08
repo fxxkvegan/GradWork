@@ -45,7 +45,7 @@ class HomeController extends Controller
     {
         return Product::with(['categories:id,name', 'user'])
             ->orderByDesc('rating')
-            ->orderByDesc('download_count')
+            ->orderByDesc('access_count')
             ->limit($limit)
             ->get()
             ->map(static function (Product $product) {
@@ -61,7 +61,7 @@ class HomeController extends Controller
         return Product::with(['categories:id,name', 'user'])
             ->where('created_at', '>=', $recentWeeks)
             ->where('rating', '>=', 3.5)
-            ->orderByRaw('(rating * 0.4 + (download_count / 1000) * 0.6) DESC')
+            ->orderByRaw('(rating * 0.4 + (access_count / 1000) * 0.6) DESC')
             ->orderByDesc('created_at')
             ->limit($limit)
             ->get()
