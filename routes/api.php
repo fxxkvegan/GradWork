@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\CategoryController;
 use App\Http\Controllers\Api\DirectMessageController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\ProductFileController;
 use App\Http\Controllers\Api\ProductController;
 use App\Http\Controllers\Api\RankingController;
 use App\Http\Controllers\Api\ReviewController;
@@ -22,6 +23,9 @@ Route::delete('/products/{productId}', [ProductController::class, 'destroy'])->m
 Route::get('/products/{productId}/versions', [ProductController::class, 'versions']);
 Route::get('/products/{productId}/status', [ProductController::class, 'status']);
 Route::post('/products/{productId}/access', [ProductController::class, 'incrementAccessCount']);
+Route::get('/products/{product}/files/tree', [ProductFileController::class, 'tree']);
+Route::get('/products/{product}/files/preview', [ProductFileController::class, 'preview']);
+Route::post('/products/{product}/files/download-intent', [ProductFileController::class, 'downloadIntent']);
 
 // Categories routes
 Route::get('/categories', [CategoryController::class, 'index']);
