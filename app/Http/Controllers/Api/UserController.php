@@ -475,6 +475,10 @@ class UserController extends Controller
             ? $user->created_at->toIso8601String()
             : null;
 
+        $emailVerifiedAt = $user->email_verified_at instanceof Carbon
+            ? $user->email_verified_at->toIso8601String()
+            : null;
+
         $productsCount = (int) ($user->products_count ?? $user->products()->count());
         $followersCount = (int) ($user->followers_count ?? $user->followers()->count());
         $followingCount = (int) ($user->following_count ?? $user->following()->count());
@@ -500,6 +504,7 @@ class UserController extends Controller
             'joinedAt' => $joinedAt,
             'followersCount' => max(0, $followersCount),
             'followingCount' => max(0, $followingCount),
+            'emailVerifiedAt' => $emailVerifiedAt,
         ];
 
         if ($isFollowing !== null) {
