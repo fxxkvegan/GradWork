@@ -106,6 +106,9 @@ class ProductController extends Controller
         if ($request->hasFile('image_url')) {
             foreach ($request->file('image_url') as $file) {
                 $path = $file->store('products', 'public');
+                if (!is_string($path) || $path === '') {
+                    continue;
+                }
                 $url = Storage::url($path);
                 $imageUrls[] = $url;
             }
@@ -210,6 +213,9 @@ class ProductController extends Controller
         if ($request->hasFile('image_url')) {
             foreach ($request->file('image_url') as $file) {
                 $path = $file->store('products', 'public');
+                if (!is_string($path) || $path === '') {
+                    continue;
+                }
                 $url = Storage::url($path);
                 $newImages[] = $url;
             }

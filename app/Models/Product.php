@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\ProductFile;
 
 use function array_filter;
 use function array_values;
@@ -23,6 +24,7 @@ class Product extends Model
         'web_app_url',
         'image_url',
         'user_id',
+        'file_status',
     ];
 
     protected $casts = [
@@ -31,6 +33,7 @@ class Product extends Model
         'rating' => 'float',
         'access_count' => 'integer',
         'image_url' => 'string',
+        'file_status' => 'string',
     ];
 
     protected $appends = ['categoryIds'];
@@ -47,6 +50,11 @@ class Product extends Model
     public function reviews()
     {
         return $this->hasMany(Review::class);
+    }
+
+    public function files()
+    {
+        return $this->hasMany(ProductFile::class);
     }
 
     // リレーション: 製品と複数のカテゴリ（多対多）
@@ -74,6 +82,11 @@ class Product extends Model
     public function getAccessCountAttribute($value)
     {
         return $this->attributes['access_count'] ?? 0;
+    }
+
+    public function getFileStatusAttribute($value): string
+    {
+        return $value ?: 'none';
     }
 
     /**
