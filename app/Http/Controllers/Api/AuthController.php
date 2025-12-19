@@ -3,8 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
 use App\Models\User;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
@@ -35,21 +35,32 @@ class AuthController extends Controller
     public function signup(Request $request)
     {
         $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|email|max:255|unique:users',
+            'name' => 'required|string|max:255|unique:users,name',
+            'email' => 'required|string|email|max:255',
             'password' => 'required|string|min:8'
         ]);
 
+        $normalizedEmail = strtolower(trim($validated['email']));
+
+        if (User::where('email', $normalizedEmail)->exists()) {
+            return response()->json([
+                'message' => 'このメールアドレスは既に登録されています。',
+                'data' => null,
+            ], 403);
+        }
+
         $user = User::create([
             'name' => $validated['name'],
-            'email' => $validated['email'],
+            'email' => $normalizedEmail,
             'password' => Hash::make($validated['password']),
         ]);
+
+        $user->sendEmailVerificationNotification();
 
         $token = $user->createToken('AccessToken')->plainTextToken;
 
         return response()->json([
-            'message' => 'User created successfully',
+            'message' => 'User created successfully. Please verify your email address.',
             'token' => $token,
             'user' => $user
         ], 201);
