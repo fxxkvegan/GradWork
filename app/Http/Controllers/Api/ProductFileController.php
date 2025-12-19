@@ -90,6 +90,36 @@ class ProductFileController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function upsertReadme(Request $request, Product $product)
+    {
+        $validated = $request->validate([
+            'content' => ['required', 'string', 'max:200000'],
+        ]);
+
+        $user = $request->user();
+        if (!$user || (int) $product->user_id !== (int) $user->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $content = $validated['content'];
+
+        $file = $product->files()->updateOrCreate(
+            ['path' => 'README.md'],
+            [
+                'type' => 'file',
+                'size' => strlen($content),
+                'mime' => 'text/markdown',
+                'is_previewable' => true,
+                'preview_text' => $content,
+            ],
+        );
+
+        return response()->json([
+            'ok' => true,
+            'path' => $file->path,
+        ]);
+    }
+
     private function isAllowlisted(string $path): bool
     {
         $extension = strtolower((string) pathinfo($path, PATHINFO_EXTENSION));
