@@ -24,6 +24,7 @@ Route::post('/products/{productId}/access', [ProductController::class, 'incremen
 Route::get('/products/{product}/files/tree', [ProductFileController::class, 'tree']);
 Route::get('/products/{product}/files/preview', [ProductFileController::class, 'preview']);
 Route::post('/products/{product}/files/download-intent', [ProductFileController::class, 'downloadIntent']);
+Route::post('/products/{product}/files/readme', [ProductFileController::class, 'upsertReadme'])->middleware('auth:api');
 
 // Categories routes (public)
 Route::get('/categories', [CategoryController::class, 'index']);
