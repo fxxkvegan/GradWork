@@ -2,17 +2,18 @@
 
 namespace App\Models;
 
-use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
-use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
+// メール認証は開発環境では無効化
+// use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
+// use Illuminate\Contracts\Auth\MustVerifyEmail as MustVerifyEmailContract;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements MustVerifyEmailContract
+class User extends Authenticatable // implements MustVerifyEmailContract (開発環境では無効化)
 {
-    use HasApiTokens, Notifiable, MustVerifyEmailTrait;
+    use HasApiTokens, Notifiable; // MustVerifyEmailTrait は削除
 
     /**
      * The attributes that are mass assignable.
