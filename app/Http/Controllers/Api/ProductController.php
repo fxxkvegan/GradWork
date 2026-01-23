@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Product;
 use App\Models\ProductStatus;
+use App\Models\ProductUpvote;
 use App\Models\Version;
 use App\Support\Presenters\ProductPresenter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ProductController extends Controller
 {
@@ -25,7 +27,8 @@ class ProductController extends Controller
             'sort' => 'nullable|string|in:name,rating,access_count,created_at',
         ]);
 
-        $productsQuery = Product::with(['categories', 'user']);
+        $productsQuery = Product::with(['categories', 'user'])
+            ->withCount(['upvotes as upvote_count']);
 
         if ($request->filled('q')) {
             $productsQuery->where('name', 'like', '%' . $request->q . '%');
@@ -68,9 +71,23 @@ class ProductController extends Controller
             ], 200);
         }
 
-        $items = array_map(static function (Product $product) {
-            return ProductPresenter::present($product);
-        }, $products->items());
+        $itemsSource = $products->items();
+        $productIds = array_map(static fn (Product $product) => $product->id, $itemsSource);
+        $user = auth('api')->user();
+        $upvotedIds = [];
+        if ($user && $productIds) {
+            $upvotedIds = ProductUpvote::where('user_id', $user->id)
+                ->whereIn('product_id', $productIds)
+                ->pluck('product_id')
+                ->all();
+        }
+
+        $items = array_map(static function (Product $product) use ($upvotedIds) {
+            $payload = ProductPresenter::present($product);
+            $payload['has_upvoted'] = in_array($product->id, $upvotedIds, true);
+            $payload['upvote_count'] = (int) ($payload['upvote_count'] ?? 0);
+            return $payload;
+        }, $itemsSource);
 
         return response()->json([
             'items' => $items,
@@ -89,6 +106,7 @@ class ProductController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'tagline' => 'nullable|string|max:60',
             'description' => 'nullable|string',
             'categoryIds' => 'nullable|array',
             'categoryIds.*' => 'integer|exists:categories,id',
@@ -114,8 +132,14 @@ class ProductController extends Controller
             }
         }
 
+        $resolvedTagline = $this->resolveTagline(
+            $request->input('tagline'),
+            $request->input('description')
+        );
+
         $product = Product::create([
             'name' => $request->name,
+            'tagline' => $resolvedTagline,
             'description' => $request->description,
             'rating' => 0,
             'access_count' => 0,
@@ -145,9 +169,23 @@ class ProductController extends Controller
             ], 400);
         }
 
-        $product = Product::with(['categories', 'user'])->findOrFail($productId);
+        $product = Product::with(['categories', 'user'])
+            ->withCount(['upvotes as upvote_count'])
+            ->findOrFail($productId);
 
-        return response()->json(ProductPresenter::present($product));
+        $user = auth('api')->user();
+        $hasUpvoted = false;
+        if ($user) {
+            $hasUpvoted = ProductUpvote::where('product_id', $product->id)
+                ->where('user_id', $user->id)
+                ->exists();
+        }
+
+        $payload = ProductPresenter::present($product);
+        $payload['has_upvoted'] = $hasUpvoted;
+        $payload['upvote_count'] = (int) ($payload['upvote_count'] ?? 0);
+
+        return response()->json($payload);
     }
 
     // PUT /products/{productId}
@@ -155,6 +193,7 @@ class ProductController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'tagline' => 'nullable|string|max:60',
             'description' => 'nullable|string',
             'categoryIds' => 'nullable|array',
             'categoryIds.*' => 'integer|exists:categories,id',
@@ -229,8 +268,14 @@ class ProductController extends Controller
 
         $imageUrls = array_merge($remainingImages, $newImages);
 
+        $resolvedTagline = $this->resolveTagline(
+            $request->input('tagline'),
+            $request->input('description')
+        );
+
         $updateData = [
             'name' => $request->name,
+            'tagline' => $resolvedTagline,
             'description' => $request->description,
             'image_url' => json_encode($imageUrls),
         ];
@@ -254,6 +299,21 @@ class ProductController extends Controller
         $product->load(['categories', 'user']);
 
         return response()->json(ProductPresenter::present($product));
+    }
+
+    private function resolveTagline(?string $tagline, ?string $description): string
+    {
+        $tagline = trim((string) $tagline);
+        if ($tagline !== '') {
+            return Str::limit($tagline, 60, '');
+        }
+
+        $description = trim((string) $description);
+        if ($description !== '') {
+            return Str::limit($description, 60, '');
+        }
+
+        return '（説明未設定）';
     }
 
     // DELETE /products/{productId}

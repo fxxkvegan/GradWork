@@ -8,6 +8,8 @@ install
 composer install
 ```
 
+注意: `mbstring` 拡張が必要です。
+
 env 作成（初回だけ）
 
 ```bash

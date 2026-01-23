@@ -7,6 +7,7 @@ use App\Http\Controllers\Api\EmailVerificationController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\ProductFileController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProductUpvoteController;
 use App\Http\Controllers\Api\RankingController;
 use App\Http\Controllers\Api\ReviewController;
 use App\Http\Controllers\Api\UserController;
@@ -32,6 +33,7 @@ Route::get('/categories/{categoryId}', [CategoryController::class, 'show']);
 
 // Rankings route
 Route::get('/rankings', [RankingController::class, 'index']);
+Route::get('/rankings/today', [RankingController::class, 'today']);
 
 // Reviews routes (public)
 Route::get('/products/{productId}/reviews', [ReviewController::class, 'index']);
@@ -74,6 +76,10 @@ Route::middleware('auth:api')->group(function () {
         Route::delete('/reviews/{reviewId}', [ReviewController::class, 'destroy']);
         Route::post('/reviews/{reviewId}/vote', [ReviewController::class, 'vote']);
         Route::post('/reviews/{reviewId}/responses', [ReviewController::class, 'storeResponse']);
+
+        // Upvotes
+        Route::post('/products/{productId}/upvote', [ProductUpvoteController::class, 'store']);
+        Route::delete('/products/{productId}/upvote', [ProductUpvoteController::class, 'destroy']);
 
         // User profile & settings
         Route::get('/users/me', [UserController::class, 'profile']);

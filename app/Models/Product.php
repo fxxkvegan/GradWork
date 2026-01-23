@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use App\Models\ProductFile;
+use App\Models\ProductUpvote;
 
 use function array_filter;
 use function array_values;
@@ -16,6 +17,7 @@ class Product extends Model
 {
     protected $fillable = [
         'name',
+        'tagline',
         'description',
         'rating',
         'access_count',
@@ -32,6 +34,7 @@ class Product extends Model
         'updated_at' => 'datetime',
         'rating' => 'float',
         'access_count' => 'integer',
+        'tagline' => 'string',
         'image_url' => 'string',
         'file_status' => 'string',
     ];
@@ -55,6 +58,11 @@ class Product extends Model
     public function files()
     {
         return $this->hasMany(ProductFile::class);
+    }
+
+    public function upvotes()
+    {
+        return $this->hasMany(ProductUpvote::class);
     }
 
     // リレーション: 製品と複数のカテゴリ（多対多）
